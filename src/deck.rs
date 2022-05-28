@@ -1,7 +1,7 @@
-
 use crate::card::*;
+use strum::IntoEnumIterator;
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Deck {
   value: u64
 }
@@ -40,6 +40,22 @@ impl Deck {
 
   pub fn has_card(&self, card: Card) -> bool {
     self.value & (1 << u8::from(card)) > 0
+  }
+
+  pub fn get_suit(&self, suit: Suit) -> u16 {
+    (self.value >> (suit as u8)) as u16
+  }
+
+  pub fn get_cards(&self) -> Vec<Card> {
+    let mut cards = Vec::new();
+    for s in Suit::iter() {
+      for fv in FaceValue::iter() {
+        if self.has_card(Card::new(s, fv)) {
+          cards.push(Card::new(s, fv));
+        }
+      }
+    }
+    cards
   }
 
 }

@@ -1,8 +1,9 @@
 
 use std::fmt::Display;
+use strum_macros::EnumIter;
 
-#[derive(Debug)]
-#[derive(PartialEq)]
+#[repr(u8)]
+#[derive(Debug, PartialEq, EnumIter, Copy, Clone)]
 pub enum Suit {
   Heart = 0,
   Diamond = 16,
@@ -22,22 +23,22 @@ impl std::fmt::Display for Suit {
   }
 }
 
-#[derive(Debug)]
-#[derive(PartialEq)]
+#[repr(u8)]
+#[derive(Debug, PartialEq, EnumIter, Copy, Clone)]
 pub enum FaceValue {
-  Two,
-  Three,
-  Four,
-  Five,
-  Six,
-  Seven,
-  Eight,
-  Nine,
-  Ten,
-  Jack,
-  Queen,
-  King,
-  Ace
+  Two = 0,
+  Three = 1,
+  Four = 2,
+  Five = 3,
+  Six = 4,
+  Seven = 5,
+  Eight = 6,
+  Nine = 7,
+  Ten = 8,
+  Jack = 9,
+  Queen = 10,
+  King = 11,
+  Ace = 12
 }
 
 
@@ -62,11 +63,10 @@ impl std::fmt::Display for FaceValue {
 }
 
 
-#[derive(Debug)]
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Card {
-  suit: Suit,
-  value: FaceValue,
+  pub suit: Suit,
+  pub value: FaceValue,
 }
 
 

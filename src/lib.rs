@@ -1,11 +1,11 @@
 
 mod card;
 mod deck;
-// mod hand;
+mod hand;
 
 use card::*;
 use deck::*;
-// use hand::*;
+use hand::*;
 
 pub fn run_code() {
   let card = Card::new(Suit::Heart, FaceValue::Ace);
@@ -32,6 +32,8 @@ pub fn run_code() {
 
   println!("The deck {} {}", deck3, deck3.has_card(Card::new(Suit::Heart, FaceValue::Ace)));
 
+
+  evaluate_deck(&deck3);
 
 }
 
