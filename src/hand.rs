@@ -42,39 +42,35 @@ fn count_bits_set(val: u16) -> u8 {
 }
 
 
-
-fn count_biggest_straight_length(val: u16) -> u8 {
-  let mut high_count = 0;
-  let mut curr_count = 0;
-
-  // ace wraparound...
-  if val & (1 << FaceValue::Ace as u8) > 0 {
-    curr_count += 1;
-  }
+fn get_straight_high_card(val: u16) -> Option<FaceValue> {
+  let mut straight_count = if val & (1 << FaceValue::Ace as u8) > 0 { 1 } else { 0 };
 
   for fv in FaceValue::iter() {
     if val & (1 << fv as u8) > 0 {
-      curr_count += 1;
+      straight_count += 1;
     } else {
-      if curr_count > high_count {
-        high_count = curr_count;
-      }
-      curr_count = 0;
+      straight_count = 0;
+    }
+
+    if straight_count == 5 {
+      return Some(fv);
     }
   }
 
-  if curr_count > high_count { curr_count } else { high_count }
+  None
 }
 
 
 
 fn get_suit_count(deck: &Deck) -> [SuitCount; 4] {
-  [
+  let mut counts = [
     SuitCount { suit: Suit::Diamond, count:count_bits_set(deck.get_suit(Suit::Diamond)) },
     SuitCount { suit: Suit::Club, count: count_bits_set(deck.get_suit(Suit::Club)) },
     SuitCount { suit: Suit::Heart, count: count_bits_set(deck.get_suit(Suit::Heart)) },
     SuitCount { suit: Suit::Spade, count: count_bits_set(deck.get_suit(Suit::Spade)) },
-  ]
+  ];
+  counts.sort_by_key(|v| Reverse(v.count));
+  counts
 }
 
 
@@ -123,33 +119,20 @@ fn get_biggest_face(suit_val: u16) -> FaceValue {
 
 
 
-
-
-
-
-
-
-
 pub fn evaluate_deck(deck: &Deck) -> HandRank {
 
   let suit_counts = get_suit_count(deck);
 
-  let biggest_suit = suit_counts.iter().fold(&suit_counts[0], |high, v| if v.count > high.count { v } else { high });
-
-
   // Royal flush + straight flush
-  if biggest_suit.count >= 5 {
-    let suit_value = deck.get_suit(biggest_suit.suit);
-    let biggest_straight = count_biggest_straight_length(suit_value);
-    if biggest_straight >= 5 {
-      if deck.has_card(Card::new(biggest_suit.suit, FaceValue::Ace)) && deck.has_card(Card::new(biggest_suit.suit, FaceValue::King)) {
-        return HandRank::RoyalFlush
-      } else {
-        // TODO: This could be incorrect... if we have an Ace then a split straight
-        return HandRank::StraightFlush { high_card: get_biggest_face(deck.get_suit(biggest_suit.suit)) }
-      }
+  if suit_counts[0].count >= 5 {
+    let straight_high = get_straight_high_card(deck.get_suit(suit_counts[0].suit));
+    match straight_high {
+      Some(FaceValue::Ace) => return HandRank::RoyalFlush,
+      Some(high_card) => return HandRank::StraightFlush { high_card },
+      None => {},
     }
   }
+
 
   let face_counts = get_face_count(deck);
 
@@ -171,16 +154,16 @@ pub fn evaluate_deck(deck: &Deck) -> HandRank {
 
 
   // Flush
-  if biggest_suit.count >= 5 {
-    return HandRank::Flush { high_card: get_biggest_face(deck.get_suit(biggest_suit.suit)) };
+  if suit_counts[0].count >= 5 {
+    return HandRank::Flush { high_card: get_biggest_face(deck.get_suit(suit_counts[0].suit)) };
   }
 
   // Straight
   let combined_suit = Suit::iter().map(|s| deck.get_suit(s)).fold(0, |acc, v| acc | v);
-  if count_biggest_straight_length(combined_suit) >= 5 {
-    return HandRank::Straight { high_card: get_biggest_face(combined_suit) }
+  match get_straight_high_card(combined_suit) {
+    Some(high_card) => return HandRank::Straight { high_card },
+    None => {}
   }
-
 
   // Three of a kind
   if face_counts[0].count >= 3 {
