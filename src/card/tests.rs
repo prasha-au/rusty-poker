@@ -3,10 +3,10 @@ use crate::card::*;
 
 #[test]
 fn conversion_from_u8() {
-  assert_eq!(Card::new(Suit::Heart, FaceValue::Ten), Card::from(8));
-  assert_eq!(Card::new(Suit::Diamond, FaceValue::Five), Card::from(19));
-  assert_eq!(Card::new(Suit::Club, FaceValue::Ace), Card::from(60));
-  assert_eq!(Card::new(Suit::Heart, FaceValue::Two), Card::from(0));
+  assert_eq!(Card::new(Suit::Heart, FaceValue::Ten), Card::try_from(8).unwrap());
+  assert_eq!(Card::new(Suit::Diamond, FaceValue::Five), Card::try_from(19).unwrap());
+  assert_eq!(Card::new(Suit::Club, FaceValue::Ace), Card::try_from(60).unwrap());
+  assert_eq!(Card::new(Suit::Heart, FaceValue::Two), Card::try_from(0).unwrap());
 }
 
 #[test]

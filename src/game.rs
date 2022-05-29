@@ -1,6 +1,6 @@
 use crate::deck::Deck;
 use crate::hand::*;
-
+use crate::card::Card;
 
 
 // enum Phase {
@@ -29,26 +29,21 @@ struct Game {
 
 fn simulate_game(game: &mut Game) {
 
-  for c in game.used_cards.get_available_cards(5) {
-    game.used_cards.add_card(c);
+  for _ in 0..5 {
+    let c = game.used_cards.pick_available_card();
     game.table.add_card(c);
   }
 
 
 
   for p in &mut game.players {
-    for c in game.used_cards.get_available_cards(2) {
-      game.used_cards.add_card(c);
+    for _ in 0..2 {
+      let c = game.used_cards.pick_available_card();
       p.add_card(c);
     }
   }
 
   println!("{}", game.table);
-
-  let player_scores = game.players.iter().map(|p| {
-    println!("{:?}", p.get_cards());
-  }).collect::<Vec<_>>();
-
 }
 
 

@@ -6,6 +6,7 @@ fn should_simulate_a_game_from_start() {
 
 
   for i in 0..100000 {
+    println!("Game number {} ", i);
     let mut game = Game {
       // phase: Phase::PreFlop,
       used_cards: Deck::new(),
@@ -20,7 +21,7 @@ fn should_simulate_a_game_from_start() {
   }
 
 
-  assert_eq!(2, 1);
+  // assert_eq!(2, 1);
 
 }
 

@@ -83,32 +83,39 @@ impl Card {
 }
 
 // TODO: Fix this to stop panicing
-impl From<u8> for Card {
-  fn from(num_value: u8) -> Self {
-    Card {
-      suit: match num_value / 16 {
-        0 => Suit::Heart,
-        1 => Suit::Diamond,
-        2 => Suit::Spade,
-        3 => Suit::Club,
-        bad_value => panic!("Invalid suit {}", bad_value)
-      },
-      value: match num_value % 16 {
-        0 => FaceValue::Two,
-        1 => FaceValue::Three,
-        2 => FaceValue::Four,
-        3 => FaceValue::Five,
-        4 => FaceValue::Six,
-        5 => FaceValue::Seven,
-        6 => FaceValue::Eight,
-        7 => FaceValue::Nine,
-        8 => FaceValue::Ten,
-        9 => FaceValue::Jack,
-        10 => FaceValue::Queen,
-        11 => FaceValue::King,
-        12 => FaceValue::Ace,
-        bad_value => panic!("Invalid face value {}", bad_value)
-      }
+impl TryFrom<u8> for Card {
+  type Error = &'static str;
+  fn try_from(num_value: u8) -> Result<Self, Self::Error> {
+
+    let suit = match num_value / 16 {
+      0 => Ok(Suit::Heart),
+      1 => Ok(Suit::Diamond),
+      2 => Ok(Suit::Spade),
+      3 => Ok(Suit::Club),
+      bad_value => Err(format!("Invalid suit {}", bad_value))
+    };
+
+    let value = match num_value % 16 {
+      0 => Ok(FaceValue::Two),
+      1 => Ok(FaceValue::Three),
+      2 => Ok(FaceValue::Four),
+      3 => Ok(FaceValue::Five),
+      4 => Ok(FaceValue::Six),
+      5 => Ok(FaceValue::Seven),
+      6 => Ok(FaceValue::Eight),
+      7 => Ok(FaceValue::Nine),
+      8 => Ok(FaceValue::Ten),
+      9 => Ok(FaceValue::Jack),
+      10 => Ok(FaceValue::Queen),
+      11 => Ok(FaceValue::King),
+      12 => Ok(FaceValue::Ace),
+      bad_value => Err(format!("Invalid face value {}", bad_value))
+    };
+
+    if suit.is_err() || value.is_err() {
+      Err("Bad card value")
+    } else {
+      Ok(Card { suit: suit.unwrap(), value: value.unwrap() })
     }
   }
 }
