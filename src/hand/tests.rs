@@ -140,7 +140,7 @@ fn evaluate_two_pairs() {
 
 
 #[test]
-fn evaluate_one_pairs() {
+fn evaluate_one_pair() {
   let mut deck = Deck::new();
   deck.add_card(Card::new(Suit::Heart, FaceValue::Six));
   deck.add_card(Card::new(Suit::Diamond, FaceValue::Six));
@@ -156,6 +156,19 @@ fn evaluate_one_pairs() {
 }
 
 
-
+#[test]
+fn evaluate_high_card() {
+  let mut deck = Deck::new();
+  deck.add_card(Card::new(Suit::Heart, FaceValue::Six));
+  deck.add_card(Card::new(Suit::Diamond, FaceValue::Queen));
+  deck.add_card(Card::new(Suit::Club, FaceValue::Ace));
+  deck.add_card(Card::new(Suit::Spade, FaceValue::Four));
+  deck.add_card(Card::new(Suit::Heart, FaceValue::Two));
+  deck.add_card(Card::new(Suit::Spade, FaceValue::Seven));
+  deck.add_card(Card::new(Suit::Heart, FaceValue::Nine));
+  assert_eq!(evaluate_deck(&deck), HandRank::HighCard {
+    values: [FaceValue::Ace, FaceValue::Queen, FaceValue::Nine, FaceValue::Seven, FaceValue::Six]
+  });
+}
 
 

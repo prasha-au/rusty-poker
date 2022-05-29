@@ -2,6 +2,7 @@
 mod card;
 mod deck;
 mod hand;
+mod game;
 
 use card::*;
 use deck::*;

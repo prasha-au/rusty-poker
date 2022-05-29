@@ -1,4 +1,3 @@
-
 use std::fmt::Display;
 use strum_macros::EnumIter;
 
@@ -63,7 +62,7 @@ impl std::fmt::Display for FaceValue {
 }
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Card {
   pub suit: Suit,
   pub value: FaceValue,
@@ -77,16 +76,15 @@ impl Display for Card {
 }
 
 
-
 impl Card {
   pub fn new(suit: Suit, value: FaceValue) -> Card {
     Card { value, suit }
   }
 }
 
+// TODO: Fix this to stop panicing
 impl From<u8> for Card {
   fn from(num_value: u8) -> Self {
-    println!("Testvalue {}", num_value);
     Card {
       suit: match num_value / 16 {
         0 => Suit::Heart,
@@ -120,6 +118,7 @@ impl From<Card> for u8 {
     (item.suit as u8) + (item.value as u8)
   }
 }
+
 
 #[cfg(test)]
 mod tests;

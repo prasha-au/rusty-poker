@@ -1,7 +1,9 @@
 use crate::card::*;
 use strum::IntoEnumIterator;
+use rand::prelude::*;
+use std::panic;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Deck {
   value: u64
 }
@@ -58,8 +60,25 @@ impl Deck {
     cards
   }
 
-}
+  pub fn get_available_cards(&self, num_cards: u8) -> Vec<Card> {
+    let mut rng = thread_rng();
+    let mut cards = Vec::new();
+    while cards.len() < num_cards.into() {
+      let idx: u8 = rng.gen_range(0..64);
 
+      if self.value & (1 << idx) > 0 {
+        continue;
+      }
+
+      let card = panic::catch_unwind(|| Card::from(idx));
+      if card.is_ok() {
+        cards.push(card.unwrap());
+      }
+    }
+    cards
+  }
+
+}
 
 impl std::ops::Add for Deck {
   type Output = Deck;

@@ -15,7 +15,36 @@ pub enum HandRank {
   ThreeOfAKind { value: FaceValue, kickers: [FaceValue; 2] },
   TwoPairs { high_value: FaceValue, second_value: FaceValue, kicker: FaceValue },
   OnePair { value: FaceValue, kickers: [FaceValue; 3] },
-  HighCard { values: [FaceValue; 4] },
+  HighCard { values: [FaceValue; 5] },
+}
+
+// TODO: This needs thorough testing for overlaps
+impl From<HandRank> for u16 {
+  fn from(rank: HandRank) -> Self {
+    match rank {
+      HandRank::RoyalFlush => 65000,
+      HandRank::StraightFlush { high_card } => 64000 + high_card as u16,
+      HandRank::FourOfAKind { value, kicker } => 60000 + value as u16 * 100 + kicker as u16,
+      HandRank::FullHouse { three_value, two_value } => 55000 + three_value as u16 * 100 + two_value as u16,
+      HandRank::Flush { values } => 50000 + values[0] as u16 * 13 * 5
+        + values[1] as u16 * 13 * 4
+        + values[2] as u16 * 13 * 3
+        + values[3] as u16 * 13 * 2
+        + values[4] as u16 * 13,
+      HandRank::Straight { high_card } => 45000 + high_card as u16,
+      HandRank::ThreeOfAKind { value, kickers } => 40000 + (value as u16 * 200) + kickers[0] as u16 * 13 + kickers[1] as u16,
+      HandRank::TwoPairs { high_value, second_value, kicker } => 35000 + high_value as u16 * 200 + second_value as u16 * 100 + kicker as u16,
+      HandRank::OnePair { value, kickers } => 20000 + value as u16 * 500
+        + kickers[0] as u16 * 13 * 3
+        + kickers[1] as u16 * 13 * 2
+        + kickers[2] as u16,
+      HandRank::HighCard { values } => 10000 + values[0] as u16 * 13 * 5
+        + values[1] as u16 * 13 * 4
+        + values[2] as u16 * 13 * 3
+        + values[3] as u16 * 13 * 2
+        + values[4] as u16 * 13,
+    }
+  }
 }
 
 
@@ -44,7 +73,6 @@ fn get_straight_high_card(val: u16) -> Option<FaceValue> {
   }
   None
 }
-
 
 
 fn get_suit_count(deck: &Deck) -> [SuitCount; 4] {
@@ -165,7 +193,7 @@ pub fn evaluate_deck(deck: &Deck) -> HandRank {
 
 
   let kickers = get_kickers(deck, |_| true);
-  return HandRank::HighCard { values: kickers[0..=5].try_into().expect("Slice with incorrect length") };
+  return HandRank::HighCard { values: kickers[0..5].try_into().expect("Slice with incorrect length") };
 
 }
 
