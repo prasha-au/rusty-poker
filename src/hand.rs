@@ -8,15 +8,14 @@ use strum::IntoEnumIterator;
 pub enum HandRank {
   RoyalFlush,
   StraightFlush { high_card: FaceValue },
-  FourOfAKind { high_card: FaceValue, kicker: FaceValue },
-  FullHouse { three_high_card: FaceValue, two_high_card: FaceValue },
-  // TODO: This needs all cards...
-  Flush { high_card: FaceValue },
+  FourOfAKind { value: FaceValue, kicker: FaceValue },
+  FullHouse { three_value: FaceValue, two_value: FaceValue },
+  Flush { values: [FaceValue; 5] },
   Straight { high_card: FaceValue },
-  ThreeOfAKind { high_card: FaceValue, kicker: FaceValue },
-  TwoPairs { high_card: FaceValue, second_high_card: FaceValue, kicker: FaceValue },
-  OnePair { high_card: FaceValue, kicker: FaceValue, kicker2: FaceValue, kicker3: FaceValue },
-  HighCard { high_card: FaceValue, kicker: FaceValue, kicker2: FaceValue, kicker3: FaceValue, kicker4: FaceValue },
+  ThreeOfAKind { value: FaceValue, kickers: [FaceValue; 2] },
+  TwoPairs { high_value: FaceValue, second_value: FaceValue, kicker: FaceValue },
+  OnePair { value: FaceValue, kickers: [FaceValue; 3] },
+  HighCard { values: [FaceValue; 4] },
 }
 
 
@@ -31,56 +30,41 @@ struct FaceValueCount {
 }
 
 
-fn count_bits_set(val: u16) -> u8 {
-  let mut count = 0;
-  for i in 0..16 {
-    if (val & (1 << i)) != 0 {
-      count += 1;
-    }
-  }
-  count
-}
-
-
 fn get_straight_high_card(val: u16) -> Option<FaceValue> {
   let mut straight_count = if val & (1 << FaceValue::Ace as u8) > 0 { 1 } else { 0 };
-
   for fv in FaceValue::iter() {
     if val & (1 << fv as u8) > 0 {
       straight_count += 1;
     } else {
       straight_count = 0;
     }
-
     if straight_count == 5 {
       return Some(fv);
     }
   }
-
   None
 }
 
 
 
 fn get_suit_count(deck: &Deck) -> [SuitCount; 4] {
+  let count_bits_set = |sv: u16| -> u8 {
+    FaceValue::iter().fold(0, |acc, fv| { if sv & (1 << fv as u8) > 0 { acc + 1 } else { acc } })
+  };
   let mut counts = [
     SuitCount { suit: Suit::Diamond, count:count_bits_set(deck.get_suit(Suit::Diamond)) },
     SuitCount { suit: Suit::Club, count: count_bits_set(deck.get_suit(Suit::Club)) },
     SuitCount { suit: Suit::Heart, count: count_bits_set(deck.get_suit(Suit::Heart)) },
     SuitCount { suit: Suit::Spade, count: count_bits_set(deck.get_suit(Suit::Spade)) },
   ];
-  counts.sort_by_key(|v| Reverse(v.count));
+  counts.sort_unstable_by_key(|v| Reverse(v.count));
   counts
 }
 
 
 fn get_face_count(deck: &Deck) -> [FaceValueCount; 13] {
   let count_card_bits = |fv: FaceValue| -> u8 {
-    let mut count = 0;
-    for suit in Suit::iter() {
-      count += if deck.has_card(Card::new(suit, fv)) { 1 } else { 0 };
-    }
-    count
+    Suit::iter().fold(0, |acc, sv| { if deck.has_card(Card::new(sv, fv)) { acc + 1 } else { acc } })
   };
   let mut counts = [
     FaceValueCount { face: FaceValue::Two, count: count_card_bits(FaceValue::Two) },
@@ -97,24 +81,19 @@ fn get_face_count(deck: &Deck) -> [FaceValueCount; 13] {
     FaceValueCount { face: FaceValue::King, count: count_card_bits(FaceValue::King) },
     FaceValueCount { face: FaceValue::Ace, count: count_card_bits(FaceValue::Ace) },
   ];
-  counts.sort_by_key(|v| Reverse(v.count));
+  counts.sort_unstable_by_key(|v| Reverse(v.count * 16 + v.face as u8));
   counts
 }
 
 
-
-// TODO: Fix this function - it should be an option...
-fn get_biggest_face(suit_val: u16) -> FaceValue {
-  for fv in FaceValue::iter().rev() {
-    if suit_val & (1 << fv as u8) > 0 {
-      return fv;
-    }
-  }
-  FaceValue::Two
+fn get_kickers<F: Fn(&Card) -> bool>(deck: &Deck, filter_fn: F) -> Vec<FaceValue> {
+  let mut kickers = deck.get_cards().iter()
+    .filter(|c| filter_fn(c))
+    .map(|v| v.value)
+    .collect::<Vec<FaceValue>>();
+  kickers.sort_unstable_by_key(|v| Reverse(*v as u8));
+  kickers
 }
-
-
-
 
 
 
@@ -122,6 +101,9 @@ fn get_biggest_face(suit_val: u16) -> FaceValue {
 pub fn evaluate_deck(deck: &Deck) -> HandRank {
 
   let suit_counts = get_suit_count(deck);
+  let face_counts = get_face_count(deck);
+
+
 
   // Royal flush + straight flush
   if suit_counts[0].count >= 5 {
@@ -134,28 +116,24 @@ pub fn evaluate_deck(deck: &Deck) -> HandRank {
   }
 
 
-  let face_counts = get_face_count(deck);
-
-
   // Four of a kind...
   if face_counts[0].count >= 4 {
-    let kicker = deck.get_cards().iter()
-      .filter(|v| v.value != face_counts[0].face)
-      .fold(FaceValue::Two, |acc, c| if (c.value as u8) > (acc as u8) { c.value } else { acc });
-    return HandRank::FourOfAKind { high_card: face_counts[0].face, kicker };
+    let kickers = get_kickers(deck, |c| c.value != face_counts[0].face);
+    return HandRank::FourOfAKind { value: face_counts[0].face, kicker: kickers[0] };
   }
 
 
 
   // Full house
   if face_counts[0].count == 3 && face_counts[1].count >= 2 {
-    return HandRank::FullHouse { three_high_card: face_counts[0].face, two_high_card: face_counts[1].face };
+    return HandRank::FullHouse { three_value: face_counts[0].face, two_value: face_counts[1].face };
   }
 
 
   // Flush
   if suit_counts[0].count >= 5 {
-    return HandRank::Flush { high_card: get_biggest_face(deck.get_suit(suit_counts[0].suit)) };
+    let high_cards = get_kickers(deck, |v: &Card| v.suit == suit_counts[0].suit);
+    return HandRank::Flush { values: high_cards[0..5].try_into().expect("slice with incorrect length") };
   }
 
   // Straight
@@ -167,32 +145,27 @@ pub fn evaluate_deck(deck: &Deck) -> HandRank {
 
   // Three of a kind
   if face_counts[0].count >= 3 {
-    let kicker = deck.get_cards().iter()
-      .filter(|v| v.value != face_counts[0].face)
-      .fold(FaceValue::Two, |acc, c| if (c.value as u8) > (acc as u8) { c.value } else { acc });
-    return HandRank::ThreeOfAKind { high_card: face_counts[0].face, kicker };
+    let kickers = get_kickers(deck, |c| c.value != face_counts[0].face);
+    return HandRank::ThreeOfAKind { value: face_counts[0].face, kickers: kickers[0..2].try_into().expect("slice with incorrect length") };
   }
 
 
   // Two pairs
   if face_counts[0].count == 2 && face_counts[1].count == 2 {
-    let kicker = deck.get_cards().iter()
-      .filter(|v| v.value != face_counts[0].face && v.value != face_counts[1].face)
-      .fold(FaceValue::Two, |acc, c| if (c.value as u8) > (acc as u8) { c.value } else { acc });
-    return HandRank::TwoPairs { high_card: face_counts[0].face, second_high_card: face_counts[1].face, kicker };
+    let kickers = get_kickers(deck, |v| v.value != face_counts[0].face && v.value != face_counts[1].face);
+    return HandRank::TwoPairs { high_value: face_counts[0].face, second_value: face_counts[1].face, kicker: kickers[0] };
   }
 
   // One pair
-  // if face_counts[0].count == 2 {
-  //   let kicker = deck.get_cards().iter()
-  //     .filter(|v| v.value != face_counts[0].face && v.value != face_counts[1].face)
-  //     .fold(FaceValue::Two, |acc, c| if (c.value as u8) > (acc as u8) { c.value } else { acc });
-  //   return HandRank::OnePair { high_card: face_counts[0].face, kicker };
-  // }
+  if face_counts[0].count == 2 {
+    let kickers = get_kickers(deck, |v| v.value != face_counts[0].face);
+    return HandRank::OnePair { value: face_counts[0].face, kickers: kickers[0..3].try_into().expect("slice with incorrect length") };
+  }
 
 
 
-  return HandRank::HighCard { high_card: FaceValue::Ace, kicker: FaceValue::Ace, kicker2: FaceValue::Ace, kicker3: FaceValue::Ace, kicker4: FaceValue::Ace };
+  let kickers = get_kickers(deck, |_| true);
+  return HandRank::HighCard { values: kickers[0..=5].try_into().expect("Slice with incorrect length") };
 
 }
 

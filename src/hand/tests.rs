@@ -1,8 +1,6 @@
 
-use crate::card::*;
 use crate::deck::*;
 use crate::hand::*;
-
 
 
 #[test]
@@ -19,11 +17,8 @@ fn should_get_highest_straight_card_wraparound() {
 }
 
 
-
-
-
 #[test]
-fn evaluate_a_royal_flush() {
+fn evaluate_royal_flush() {
   let mut deck = Deck::new();
   deck.add_card(Card::new(Suit::Heart, FaceValue::Ace));
   deck.add_card(Card::new(Suit::Heart, FaceValue::King));
@@ -34,7 +29,7 @@ fn evaluate_a_royal_flush() {
 }
 
 #[test]
-fn evaluate_a_straight_flush() {
+fn evaluate_straight_flush() {
   let mut deck = Deck::new();
   deck.add_card(Card::new(Suit::Heart, FaceValue::Queen));
   deck.add_card(Card::new(Suit::Heart, FaceValue::Jack));
@@ -47,7 +42,7 @@ fn evaluate_a_straight_flush() {
 }
 
 #[test]
-fn evaluate_a_four_of_a_kind() {
+fn evaluate_four_of_a_kind() {
   let mut deck = Deck::new();
   deck.add_card(Card::new(Suit::Heart, FaceValue::King));
   deck.add_card(Card::new(Suit::Diamond, FaceValue::King));
@@ -56,11 +51,11 @@ fn evaluate_a_four_of_a_kind() {
   deck.add_card(Card::new(Suit::Heart, FaceValue::Five));
   deck.add_card(Card::new(Suit::Diamond, FaceValue::Ten));
   deck.add_card(Card::new(Suit::Spade, FaceValue::Ace));
-  assert_eq!(evaluate_deck(&deck), HandRank::FourOfAKind { high_card: FaceValue::King, kicker: FaceValue::Ace });
+  assert_eq!(evaluate_deck(&deck), HandRank::FourOfAKind { value: FaceValue::King, kicker: FaceValue::Ace });
 }
 
 #[test]
-fn evaluate_a_full_house() {
+fn evaluate_full_house() {
   let mut deck = Deck::new();
   deck.add_card(Card::new(Suit::Heart, FaceValue::King));
   deck.add_card(Card::new(Suit::Diamond, FaceValue::King));
@@ -69,11 +64,11 @@ fn evaluate_a_full_house() {
   deck.add_card(Card::new(Suit::Diamond, FaceValue::Six));
   deck.add_card(Card::new(Suit::Heart, FaceValue::Ten));
   deck.add_card(Card::new(Suit::Spade, FaceValue::Ace));
-  assert_eq!(evaluate_deck(&deck), HandRank::FullHouse { three_high_card: FaceValue::King, two_high_card: FaceValue::Six });
+  assert_eq!(evaluate_deck(&deck), HandRank::FullHouse { three_value: FaceValue::King, two_value: FaceValue::Six });
 }
 
 #[test]
-fn evaluate_a_flush() {
+fn evaluate_flush() {
   let mut deck = Deck::new();
   deck.add_card(Card::new(Suit::Heart, FaceValue::Queen));
   deck.add_card(Card::new(Suit::Heart, FaceValue::Ten));
@@ -82,12 +77,14 @@ fn evaluate_a_flush() {
   deck.add_card(Card::new(Suit::Heart, FaceValue::Two));
   deck.add_card(Card::new(Suit::Diamond, FaceValue::Ace));
   deck.add_card(Card::new(Suit::Spade, FaceValue::Ace));
-  assert_eq!(evaluate_deck(&deck), HandRank::Flush { high_card: FaceValue::Queen });
+  assert_eq!(evaluate_deck(&deck), HandRank::Flush {
+    values: [FaceValue::Queen, FaceValue::Ten, FaceValue::Six, FaceValue::Four, FaceValue::Two]
+  });
 }
 
 
 #[test]
-fn evaluate_a_straight() {
+fn evaluate_straight() {
   let mut deck = Deck::new();
   deck.add_card(Card::new(Suit::Heart, FaceValue::Six));
   deck.add_card(Card::new(Suit::Diamond, FaceValue::Five));
@@ -101,7 +98,7 @@ fn evaluate_a_straight() {
 
 
 #[test]
-fn evaluate_a_straight_with_offset_highcard() {
+fn evaluate_straight_with_offset_highcard() {
   let mut deck = Deck::new();
   deck.add_card(Card::new(Suit::Heart, FaceValue::Six));
   deck.add_card(Card::new(Suit::Diamond, FaceValue::Five));
@@ -111,6 +108,51 @@ fn evaluate_a_straight_with_offset_highcard() {
   deck.add_card(Card::new(Suit::Spade, FaceValue::Jack));
   deck.add_card(Card::new(Suit::Heart, FaceValue::Jack));
   assert_eq!(evaluate_deck(&deck), HandRank::Straight { high_card: FaceValue::Six });
+}
+
+
+#[test]
+fn evaluate_three_of_a_kind() {
+  let mut deck = Deck::new();
+  deck.add_card(Card::new(Suit::Heart, FaceValue::Six));
+  deck.add_card(Card::new(Suit::Diamond, FaceValue::Six));
+  deck.add_card(Card::new(Suit::Spade, FaceValue::Six));
+  deck.add_card(Card::new(Suit::Spade, FaceValue::Three));
+  deck.add_card(Card::new(Suit::Heart, FaceValue::Two));
+  deck.add_card(Card::new(Suit::Spade, FaceValue::Seven));
+  deck.add_card(Card::new(Suit::Heart, FaceValue::Nine));
+  assert_eq!(evaluate_deck(&deck), HandRank::ThreeOfAKind { value: FaceValue::Six, kickers: [FaceValue::Nine, FaceValue::Seven] });
+}
+
+
+#[test]
+fn evaluate_two_pairs() {
+  let mut deck = Deck::new();
+  deck.add_card(Card::new(Suit::Heart, FaceValue::Six));
+  deck.add_card(Card::new(Suit::Diamond, FaceValue::Six));
+  deck.add_card(Card::new(Suit::Club, FaceValue::Four));
+  deck.add_card(Card::new(Suit::Spade, FaceValue::Four));
+  deck.add_card(Card::new(Suit::Heart, FaceValue::Two));
+  deck.add_card(Card::new(Suit::Spade, FaceValue::Seven));
+  deck.add_card(Card::new(Suit::Heart, FaceValue::Nine));
+  assert_eq!(evaluate_deck(&deck), HandRank::TwoPairs { high_value: FaceValue::Six, second_value: FaceValue::Four, kicker: FaceValue::Nine });
+}
+
+
+#[test]
+fn evaluate_one_pairs() {
+  let mut deck = Deck::new();
+  deck.add_card(Card::new(Suit::Heart, FaceValue::Six));
+  deck.add_card(Card::new(Suit::Diamond, FaceValue::Six));
+  deck.add_card(Card::new(Suit::Club, FaceValue::Ace));
+  deck.add_card(Card::new(Suit::Spade, FaceValue::Four));
+  deck.add_card(Card::new(Suit::Heart, FaceValue::Two));
+  deck.add_card(Card::new(Suit::Spade, FaceValue::Seven));
+  deck.add_card(Card::new(Suit::Heart, FaceValue::Nine));
+  assert_eq!(evaluate_deck(&deck), HandRank::OnePair {
+    value: FaceValue::Six,
+    kickers: [FaceValue::Ace, FaceValue::Nine, FaceValue::Seven]
+  });
 }
 
 
