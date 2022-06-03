@@ -1,34 +1,9 @@
-use std::fs::File;
-use byteorder::{ReadBytesExt, LittleEndian};
 use crate::card::*;
 use crate::deck::*;
-use std::sync::Once;
 
-const TABLE_SIZE: usize = 32487834;
+mod two_plus_two;
 
-static mut HAND_RANKS: [u32; TABLE_SIZE] = [0 as u32; TABLE_SIZE];
-
-static LOAD_RANKS_ONCE: Once = Once::new();
-
-pub fn init_tables() {
-  LOAD_RANKS_ONCE.call_once(|| {
-    let mut file = File::open("HandRanks.dat").expect("File not found");
-    unsafe {
-      file.read_u32_into::<LittleEndian>(&mut HAND_RANKS).expect("Could not read the file.");
-    }
-  });
-}
-
-fn evaluate_hand_raw(cards: [u8; 7]) -> u32 {
-  let mut p;
-  unsafe {
-    p = HAND_RANKS[53 + cards[0] as usize + 1];
-    for i in 1..=6 {
-      p = HAND_RANKS[(p as usize) + cards[i] as usize + 1];
-    }
-  }
-  p
-}
+use crate::evaluator::two_plus_two::{init_two_plus_two_table,evaluate_two_plus_two};
 
 
 fn cards_to_fixed_array(cards: &Vec<Card>) -> [u8; 7] {
@@ -52,7 +27,7 @@ fn iterate_end_game(
   let fixed_arr = cards_to_fixed_array(&table_values.get_cards());
 
   let player_hand = cards_to_fixed_array(&used_cards.get_cards());
-  let player_score = evaluate_hand_raw(player_hand);
+  let player_score = evaluate_two_plus_two(player_hand);
 
   for c1 in &available_cards {
     for c2 in &available_cards {
@@ -62,7 +37,7 @@ fn iterate_end_game(
       let mut opponent_hand = fixed_arr;
       opponent_hand[5] = u8::from(*c1);
       opponent_hand[6] = u8::from(*c2);
-      let opponent_score = evaluate_hand_raw(opponent_hand);
+      let opponent_score = evaluate_two_plus_two(opponent_hand);
       *games = *games + 1;
       if player_score >= opponent_score {
         *wins = *wins + 1;
@@ -95,6 +70,8 @@ fn iterate_games(
 
 
 pub fn chance_to_win(table: &Deck, player: &Deck) -> f32 {
+  init_two_plus_two_table();
+
   let mut wins = 0;
   let mut games = 0;
 
@@ -106,7 +83,6 @@ pub fn chance_to_win(table: &Deck, player: &Deck) -> f32 {
 
   let percent = (wins as f32) / (games as f32);
 
-  // println!("Player score {:.5}", player_score);
   println!("{}/{} {:.5}", wins, games, percent);
 
   percent

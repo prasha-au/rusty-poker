@@ -6,15 +6,15 @@ use ntest::{timeout,assert_about_eq};
 #[test]
 #[timeout(200)]
 
-fn init_tables_should_be_spammable() {
+fn init_two_plus_two_table_should_be_spammable() {
   for _ in 0..10000 {
-    init_tables();
+    init_two_plus_two_table();
   }
 }
 
 #[test]
 fn should_calculate_odds_of_winning() {
-  init_tables();
+  init_two_plus_two_table();
   let table = Deck::from_cards(&vec!(
     Card::new(Suit::Heart, Rank::Two),
     Card::new(Suit::Heart, Rank::Three),
@@ -32,7 +32,7 @@ fn should_calculate_odds_of_winning() {
 
 #[test]
 fn should_always_win_on_royal_flush() {
-  init_tables();
+  init_two_plus_two_table();
   let table = Deck::from_cards(&vec!(
     Card::new(Suit::Heart, Rank::Two),
     Card::new(Suit::Heart, Rank::Three),

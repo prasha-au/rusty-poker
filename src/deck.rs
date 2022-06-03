@@ -94,13 +94,6 @@ impl Deck {
     cards
   }
 
-
-
-  pub fn invert(&mut self) {
-    self.value = !self.value & (u64::MAX >> 12);
-  }
-
-
 }
 
 impl std::ops::Add for Deck {
