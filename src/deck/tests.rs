@@ -78,16 +78,6 @@ fn deck_addition_with_overlap() {
 
 
 #[test]
-fn get_suit() {
-  let mut deck = Deck::new();
-  deck.add_card(Card::new(Suit::Spade, FaceValue::Three));
-  deck.add_card(Card::new(Suit::Spade, FaceValue::Four));
-
-  assert_eq!(deck.get_suit(Suit::Spade), 0b000000000000110);
-}
-
-
-#[test]
 fn create_from_cards() {
   let cards = vec![Card::try_from(8).unwrap(), Card::try_from(18).unwrap()];
   let deck = Deck::from_cards(cards);
@@ -99,14 +89,14 @@ fn create_from_cards() {
 fn pick_available_card() {
   let mut cards = Vec::<Card>::new();
   for s in Suit::iter() {
-    for fv in FaceValue::iter() {
-      if s != Suit::Spade || fv != FaceValue::Three {
+    for fv in Rank::iter() {
+      if s != Suit::Spade || fv != Rank::Three {
         cards.push(Card::new(s, fv));
       }
     }
   }
   let mut deck = Deck::from_cards(cards);
-  assert_eq!(deck.pick_available_card(), Card::new(Suit::Spade, FaceValue::Three));
+  assert_eq!(deck.pick_available_card(), Card::new(Suit::Spade, Rank::Three));
 }
 
 

@@ -5,9 +5,9 @@ use strum_macros::EnumIter;
 #[derive(Debug, PartialEq, EnumIter, Copy, Clone)]
 pub enum Suit {
   Heart = 0,
-  Diamond = 16,
-  Spade = 32,
-  Club = 48
+  Diamond = 1,
+  Spade = 2,
+  Club = 3
 }
 
 
@@ -24,7 +24,7 @@ impl std::fmt::Display for Suit {
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, EnumIter, Copy, Clone)]
-pub enum FaceValue {
+pub enum Rank {
   Two = 0,
   Three = 1,
   Four = 2,
@@ -41,22 +41,22 @@ pub enum FaceValue {
 }
 
 
-impl std::fmt::Display for FaceValue {
+impl std::fmt::Display for Rank {
   fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
      match *self {
-        FaceValue::Two => write!(f, "2"),
-        FaceValue::Three => write!(f, "3"),
-        FaceValue::Four => write!(f, "4"),
-        FaceValue::Five => write!(f, "5"),
-        FaceValue::Six => write!(f, "6"),
-        FaceValue::Seven => write!(f, "7"),
-        FaceValue::Eight => write!(f, "8"),
-        FaceValue::Nine => write!(f, "9"),
-        FaceValue::Ten => write!(f, "10"),
-        FaceValue::Jack => write!(f, "J"),
-        FaceValue::Queen => write!(f, "Q"),
-        FaceValue::King => write!(f, "K"),
-        FaceValue::Ace => write!(f, "A"),
+        Rank::Two => write!(f, "2"),
+        Rank::Three => write!(f, "3"),
+        Rank::Four => write!(f, "4"),
+        Rank::Five => write!(f, "5"),
+        Rank::Six => write!(f, "6"),
+        Rank::Seven => write!(f, "7"),
+        Rank::Eight => write!(f, "8"),
+        Rank::Nine => write!(f, "9"),
+        Rank::Ten => write!(f, "10"),
+        Rank::Jack => write!(f, "J"),
+        Rank::Queen => write!(f, "Q"),
+        Rank::King => write!(f, "K"),
+        Rank::Ace => write!(f, "A"),
      }
   }
 }
@@ -65,29 +65,29 @@ impl std::fmt::Display for FaceValue {
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Card {
   pub suit: Suit,
-  pub value: FaceValue,
+  pub rank: Rank,
 }
 
 
 impl Display for Card {
   fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
-    write!(f, "{}{}", self.suit, self.value)
+    write!(f, "{}{}", self.suit, self.rank)
   }
 }
 
 
 impl Card {
-  pub fn new(suit: Suit, value: FaceValue) -> Card {
-    Card { value, suit }
+  pub fn new(suit: Suit, rank: Rank) -> Card {
+    Card { rank, suit }
   }
 }
 
-// TODO: Fix this to stop panicing
+
 impl TryFrom<u8> for Card {
   type Error = &'static str;
   fn try_from(num_value: u8) -> Result<Self, Self::Error> {
 
-    let suit = match num_value / 16 {
+    let suit = match num_value % 4 {
       0 => Ok(Suit::Heart),
       1 => Ok(Suit::Diamond),
       2 => Ok(Suit::Spade),
@@ -95,34 +95,34 @@ impl TryFrom<u8> for Card {
       bad_value => Err(format!("Invalid suit {}", bad_value))
     };
 
-    let value = match num_value % 16 {
-      0 => Ok(FaceValue::Two),
-      1 => Ok(FaceValue::Three),
-      2 => Ok(FaceValue::Four),
-      3 => Ok(FaceValue::Five),
-      4 => Ok(FaceValue::Six),
-      5 => Ok(FaceValue::Seven),
-      6 => Ok(FaceValue::Eight),
-      7 => Ok(FaceValue::Nine),
-      8 => Ok(FaceValue::Ten),
-      9 => Ok(FaceValue::Jack),
-      10 => Ok(FaceValue::Queen),
-      11 => Ok(FaceValue::King),
-      12 => Ok(FaceValue::Ace),
+    let value = match num_value / 4 {
+      0 => Ok(Rank::Two),
+      1 => Ok(Rank::Three),
+      2 => Ok(Rank::Four),
+      3 => Ok(Rank::Five),
+      4 => Ok(Rank::Six),
+      5 => Ok(Rank::Seven),
+      6 => Ok(Rank::Eight),
+      7 => Ok(Rank::Nine),
+      8 => Ok(Rank::Ten),
+      9 => Ok(Rank::Jack),
+      10 => Ok(Rank::Queen),
+      11 => Ok(Rank::King),
+      12 => Ok(Rank::Ace),
       bad_value => Err(format!("Invalid face value {}", bad_value))
     };
 
     if suit.is_err() || value.is_err() {
       Err("Bad card value")
     } else {
-      Ok(Card { suit: suit.unwrap(), value: value.unwrap() })
+      Ok(Card { suit: suit.unwrap(), rank: value.unwrap() })
     }
   }
 }
 
 impl From<Card> for u8 {
   fn from(item: Card) -> Self {
-    (item.suit as u8) + (item.value as u8)
+    item.rank as u8 * 4 + item.suit as u8
   }
 }
 

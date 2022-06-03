@@ -1,7 +1,7 @@
 use crate::deck::Deck;
 use crate::hand::*;
-use crate::card::Card;
-
+use crate::card::*;
+use strum::IntoEnumIterator;
 
 // enum Phase {
 //   PreFlop,
@@ -25,11 +25,22 @@ struct Game {
 
 
 
-
-
 fn simulate_game(game: &mut Game) {
 
-  for _ in 0..5 {
+
+  let table_cards_remaining = 5 - game.table.get_cards().len();
+
+  let player_cards_remaining = (game.players.len() * 2) - game.players.iter().fold(0, |acc, p| acc + p.get_cards().len());
+
+
+
+
+
+
+
+
+
+  for _ in 0..table_cards_remaining {
     let c = game.used_cards.pick_available_card();
     game.table.add_card(c);
   }
