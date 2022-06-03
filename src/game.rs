@@ -3,14 +3,6 @@ use crate::hand::*;
 use crate::card::*;
 use strum::IntoEnumIterator;
 
-// enum Phase {
-//   PreFlop,
-//   Flop,
-//   Turn,
-//   River,
-//   Showdown
-// }
-
 
 
 

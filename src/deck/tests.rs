@@ -80,7 +80,7 @@ fn deck_addition_with_overlap() {
 #[test]
 fn create_from_cards() {
   let cards = vec![Card::try_from(8).unwrap(), Card::try_from(18).unwrap()];
-  let deck = Deck::from_cards(cards);
+  let deck = Deck::from_cards(&cards);
   assert_eq!(deck.value, (1 << 8) | (1 << 18));
 }
 
@@ -95,7 +95,7 @@ fn pick_available_card() {
       }
     }
   }
-  let mut deck = Deck::from_cards(cards);
+  let mut deck = Deck::from_cards(&cards);
   assert_eq!(deck.pick_available_card(), Card::new(Suit::Spade, Rank::Three));
 }
 

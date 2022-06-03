@@ -1,7 +1,6 @@
 
 mod card;
 mod deck;
-// mod hand;
 // mod game;
 mod evaluator;
 

@@ -1,27 +1,75 @@
 use crate::evaluator::*;
-
+use ntest::{timeout,assert_about_eq};
 
 
 
 #[test]
-fn should_be_able_to_load_the_table() {
-  init_tables();
+#[timeout(200)]
 
-  let cards2 = [
-    Card::new(Suit::Heart, Rank::Two),
-    Card::new(Suit::Diamond, Rank::Two),
-    Card::new(Suit::Diamond, Rank::Three),
-    Card::new(Suit::Club, Rank::Four),
-    Card::new(Suit::Club, Rank::Jack),
-    Card::new(Suit::Spade, Rank::Four),
-    Card::new(Suit::Club, Rank::Queen)
-  ];
-  let card_values = cards2.map(|c| u8::from(c));
-  for _ in 0..1000 {
-    evaluate_hand_raw(card_values);
-    // evaluate_hand(&cards2);
-    // assert_ne!(v, 5);
-
+fn init_tables_should_be_spammable() {
+  for _ in 0..10000 {
+    init_tables();
   }
-
 }
+
+#[test]
+fn should_calculate_odds_of_winning() {
+  init_tables();
+  let table = Deck::from_cards(&vec!(
+    Card::new(Suit::Heart, Rank::Two),
+    Card::new(Suit::Heart, Rank::Three),
+    Card::new(Suit::Diamond, Rank::Four),
+    Card::new(Suit::Diamond, Rank::Ten),
+    Card::new(Suit::Diamond, Rank::Jack),
+  ));
+  let player = Deck::from_cards(&vec!(
+    Card::new(Suit::Diamond, Rank::Queen),
+    Card::new(Suit::Diamond, Rank::King),
+  ));
+  assert_about_eq!(0.9929293, chance_to_win(&table, &player));
+}
+
+
+#[test]
+fn should_always_win_on_royal_flush() {
+  init_tables();
+  let table = Deck::from_cards(&vec!(
+    Card::new(Suit::Heart, Rank::Two),
+    Card::new(Suit::Heart, Rank::Three),
+    Card::new(Suit::Diamond, Rank::Ace),
+    Card::new(Suit::Diamond, Rank::Ten),
+    Card::new(Suit::Diamond, Rank::Jack),
+  ));
+  let player = Deck::from_cards(&vec!(
+    Card::new(Suit::Diamond, Rank::Queen),
+    Card::new(Suit::Diamond, Rank::King),
+  ));
+  assert_about_eq!(1f32, chance_to_win(&table, &player));
+}
+
+
+#[test]
+fn create_a_fixed_array_from_card_vec() {
+  let arr = cards_to_fixed_array(&vec!(
+    Card::new(Suit::Heart, Rank::Two),
+    Card::new(Suit::Heart, Rank::Three),
+  ));
+  assert_eq!(arr, [0, 4, 255, 255, 255, 255, 255]);
+}
+
+
+#[test]
+fn create_a_fixed_array_too_many_elements() {
+  let arr = cards_to_fixed_array(&vec!(
+    Card::new(Suit::Heart, Rank::Two),
+    Card::new(Suit::Heart, Rank::Three),
+    Card::new(Suit::Heart, Rank::Four),
+    Card::new(Suit::Heart, Rank::Five),
+    Card::new(Suit::Heart, Rank::Six),
+    Card::new(Suit::Heart, Rank::Seven),
+    Card::new(Suit::Heart, Rank::Eight),
+    Card::new(Suit::Heart, Rank::Nine),
+  ));
+  assert_eq!(arr, [0, 4, 8, 12, 16, 20, 24]);
+}
+

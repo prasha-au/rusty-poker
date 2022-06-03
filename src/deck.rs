@@ -29,10 +29,10 @@ impl Deck {
     Deck { value: 0 }
   }
 
-  pub fn from_cards(cards: Vec<Card>) -> Deck {
+  pub fn from_cards(cards: &Vec<Card>) -> Deck {
     let mut value = 0u64;
     for c in cards {
-      value |= 1 << u8::from(c);
+      value |= 1 << u8::from(*c);
     }
     Deck { value }
   }
@@ -81,8 +81,23 @@ impl Deck {
     }
   }
 
+
+  pub fn get_available_cards(&self) -> Vec<Card> {
+    let mut cards = Vec::new();
+    for s in Suit::iter() {
+      for fv in Rank::iter() {
+        if !self.has_card(Card::new(s, fv)) {
+          cards.push(Card::new(s, fv));
+        }
+      }
+    }
+    cards
+  }
+
+
+
   pub fn invert(&mut self) {
-    self.value = !self.value;
+    self.value = !self.value & (u64::MAX >> 12);
   }
 
 
