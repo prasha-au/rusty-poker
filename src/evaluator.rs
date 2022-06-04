@@ -90,12 +90,8 @@ pub fn chance_to_win(table: &Deck, player: &Deck) -> f32 {
 pub fn get_hand(table: &Deck, player: &Deck) -> Hand {
   let combined = *table + *player;
   let fixedarr = cards_to_fixed_array(&combined.get_cards());
-  println!("{:?}", fixedarr);
   let value = evaluate_two_plus_two(fixedarr);
-
-  println!("Raw value? {}", value);
   let hand_value = (value >> 12 & 0xF) as u8;
-
   Hand::from(hand_value)
 }
 
