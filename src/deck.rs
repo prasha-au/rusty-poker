@@ -1,6 +1,5 @@
 use crate::card::*;
 use strum::IntoEnumIterator;
-use rand::prelude::*;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Deck {
@@ -28,6 +27,11 @@ impl Deck {
   pub fn new() -> Deck {
     Deck { value: 0 }
   }
+
+  pub fn full_deck() -> Deck {
+    Deck { value: 0x000F_FFFF_FFFF_FFFF }
+  }
+
 
   pub fn from_cards(cards: &Vec<Card>) -> Deck {
     let mut value = 0u64;
@@ -60,27 +64,6 @@ impl Deck {
     }
     cards
   }
-
-  pub fn pick_available_card(&mut self) -> Card {
-    let mut rng = thread_rng();
-    // TODO: This isn't the most efficient logic as we have a large wasted range
-    loop {
-      let idx: u8 = rng.gen_range(0..64);
-
-      if self.value & (1 << idx) > 0 {
-        continue;
-      }
-      let card = Card::try_from(idx);
-      if card.is_err() {
-        continue;
-      }
-
-      let card = card.unwrap();
-      self.add_card(card);
-      return card;
-    }
-  }
-
 
   pub fn get_available_cards(&self) -> Vec<Card> {
     let mut cards = Vec::new();

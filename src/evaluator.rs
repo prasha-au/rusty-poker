@@ -1,10 +1,11 @@
 use crate::card::*;
 use crate::deck::*;
 
+mod types;
 mod two_plus_two;
 
-use crate::evaluator::two_plus_two::{init_two_plus_two_table,evaluate_two_plus_two};
-
+use types::*;
+use two_plus_two::{evaluate_two_plus_two};
 
 fn cards_to_fixed_array(cards: &Vec<Card>) -> [u8; 7] {
   let mut numeric_vec: Vec<u8> = cards.iter().map(|c| u8::from(*c)).collect();
@@ -70,8 +71,6 @@ fn iterate_games(
 
 
 pub fn chance_to_win(table: &Deck, player: &Deck) -> f32 {
-  init_two_plus_two_table();
-
   let mut wins = 0;
   let mut games = 0;
 
@@ -86,7 +85,18 @@ pub fn chance_to_win(table: &Deck, player: &Deck) -> f32 {
   println!("{}/{} {:.5}", wins, games, percent);
 
   percent
+}
 
+pub fn get_hand(table: &Deck, player: &Deck) -> Hand {
+  let combined = *table + *player;
+  let fixedarr = cards_to_fixed_array(&combined.get_cards());
+  println!("{:?}", fixedarr);
+  let value = evaluate_two_plus_two(fixedarr);
+
+  println!("Raw value? {}", value);
+  let hand_value = (value >> 12 & 0xF) as u8;
+
+  Hand::from(hand_value)
 }
 
 

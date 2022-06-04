@@ -1,82 +1,99 @@
 use crate::deck::Deck;
-use crate::hand::*;
 use crate::card::*;
-use strum::IntoEnumIterator;
+use rand::prelude::*;
+use crate::evaluator::*;
 
 
+
+struct Player {
+  hand: Deck,
+  wallet: u32,
+}
 
 
 struct Game {
-  // phase: Phase,
-  used_cards: Deck,
+  available_cards: Deck,
   table: Deck,
-  players: Vec<Deck>
+  players: Vec<Player>,
 }
 
 
+fn print_game(game: &Game) {
+  println!("THE TABLE: {}", game.table);
+  for p in &game.players {
+    println!("{}", p.hand);
+  }
+}
 
 
-
-fn simulate_game(game: &mut Game) {
-
-
-  let table_cards_remaining = 5 - game.table.get_cards().len();
-
-  let player_cards_remaining = (game.players.len() * 2) - game.players.iter().fold(0, |acc, p| acc + p.get_cards().len());
-
-
-
-
-
-
-
-
-
-  for _ in 0..table_cards_remaining {
-    let c = game.used_cards.pick_available_card();
-    game.table.add_card(c);
+fn get_random_available_card(game: &Game) -> Card {
+  let mut rng = thread_rng();
+  loop {
+    let possible_card = Card::try_from(rng.gen_range(0..52)).unwrap();
+    if game.available_cards.has_card(possible_card) {
+      break possible_card;
+    }
   }
 
+}
 
 
-  for p in &mut game.players {
+pub fn test_game() {
+
+  let mut game = Game {
+    available_cards: Deck::full_deck(),
+    table: Deck::new(),
+    players: vec!(
+      Player { hand: Deck::new(), wallet: 0 },
+      Player { hand: Deck::new(), wallet: 0 },
+    )
+  };
+
+  let get_random_available_card = || {
+    let mut rng = thread_rng();
+    loop {
+      let possible_card = Card::try_from(rng.gen_range(0..52)).unwrap();
+      if game.available_cards.has_card(possible_card) {
+        break possible_card;
+      }
+    }
+
+  };
+
+
+  // pre-flop
+  for p in game.players.iter_mut() {
     for _ in 0..2 {
-      let c = game.used_cards.pick_available_card();
-      p.add_card(c);
+      let card = get_random_available_card();
+      p.hand.add_card(card);
     }
   }
 
-  println!("{}", game.table);
-}
+  print_game(&game);
 
 
+  // flop
+  for _ in 0..3 {
+    game.table.add_card(get_random_available_card());
+  }
+  print_game(&game);
 
+  // turn
+  game.table.add_card(get_random_available_card());
+  print_game(&game);
 
-fn evaluate_winner(game: &Game) -> u8 {
+  // river
 
-  let player_scores = game.players.iter().map(|p| {
-    u16::from(evaluate_deck(&(*p + game.table)))
-  }).collect::<Vec<_>>();
+  game.table.add_card(get_random_available_card());
+  print_game(&game);
 
-  let mut highest_value = 0;
-  let mut highest_value_index = 0;
-
-
-  for (i, rank_value) in player_scores.iter().enumerate() {
-    println!("Player at {} had score of {}", i, rank_value);
-    if *rank_value >= highest_value {
-      highest_value_index = i;
-      highest_value = *rank_value;
-    }
+  for p in &game.players {
+    println!("{:?}", get_hand(&game.table, &p.hand));
   }
 
-  highest_value_index as u8
 }
-
 
 
 
 #[cfg(test)]
 mod tests;
-
-

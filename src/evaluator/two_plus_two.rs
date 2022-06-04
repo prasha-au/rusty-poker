@@ -19,6 +19,7 @@ pub fn init_two_plus_two_table() {
 
 
 pub fn evaluate_two_plus_two(cards: [u8; 7]) -> u32 {
+  init_two_plus_two_table();
   let mut p;
   unsafe {
     p = HAND_RANKS[53 + cards[0] as usize + 1];
@@ -28,5 +29,3 @@ pub fn evaluate_two_plus_two(cards: [u8; 7]) -> u32 {
   }
   p
 }
-
-
