@@ -87,10 +87,15 @@ pub fn chance_to_win(table: &Deck, player: &Deck) -> f32 {
   percent
 }
 
-pub fn get_hand(table: &Deck, player: &Deck) -> Hand {
+
+pub fn get_hand_score(table: &Deck, player: &Deck) -> u32 {
   let combined = *table + *player;
   let fixedarr = cards_to_fixed_array(&combined.get_cards());
-  let value = evaluate_two_plus_two(fixedarr);
+  evaluate_two_plus_two(fixedarr)
+}
+
+pub fn get_hand(table: &Deck, player: &Deck) -> Hand {
+  let value = get_hand_score(table, player);
   let hand_value = (value >> 12 & 0xF) as u8;
   Hand::from(hand_value)
 }
