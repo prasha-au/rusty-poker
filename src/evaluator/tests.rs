@@ -5,9 +5,8 @@ use crate::evaluator::two_plus_two::init_two_plus_two_table;
 
 #[test]
 #[timeout(200)]
-
 fn init_two_plus_two_table_should_be_spammable() {
-  for _ in 0..10000 {
+  for _ in 0..5000 {
     init_two_plus_two_table();
   }
 }

@@ -94,8 +94,7 @@ pub fn get_hand_score(table: &Deck, player: &Deck) -> u32 {
   evaluate_two_plus_two(fixedarr)
 }
 
-pub fn get_hand(table: &Deck, player: &Deck) -> Hand {
-  let value = get_hand_score(table, player);
+pub fn get_hand_for_score(value: u32) -> Hand {
   let hand_value = (value >> 12 & 0xF) as u8;
   Hand::from(hand_value)
 }
