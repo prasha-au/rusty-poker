@@ -1,0 +1,28 @@
+image: "rust:latest"
+
+stages:
+  - test
+
+cache:
+  - key: handranks.dat
+  - paths:
+    - handranks.dat
+
+
+test:cargo:
+  stage: test
+  before_script:
+    - |
+      if [ -e HandRanks.dat ]; then
+        echo "HandRanks.dat already exists"
+      else
+        curl -o HandRanks.dat https://raw.githubusercontent.com/tommy-a/zetebot/master/src/data/HandRanks.dat
+      fi
+  cache:
+    key: handranks
+    paths:
+      - HandRanks.dat
+  script:
+    - rustc --version && cargo --version  # Print version info for debugging
+    - cargo test --workspace --verbose
+
