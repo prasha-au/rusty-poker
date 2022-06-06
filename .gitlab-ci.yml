@@ -1,13 +1,10 @@
 image: "rust:latest"
 
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+
 stages:
   - test
-
-cache:
-  - key: handranks.dat
-  - paths:
-    - handranks.dat
-
 
 test:cargo:
   stage: test
@@ -19,10 +16,11 @@ test:cargo:
         curl -o HandRanks.dat https://raw.githubusercontent.com/tommy-a/zetebot/master/src/data/HandRanks.dat
       fi
   cache:
-    key: handranks
+    key: testcache
     paths:
       - HandRanks.dat
+      - .cargo
   script:
-    - rustc --version && cargo --version  # Print version info for debugging
+    - rustc --version && cargo --version
     - cargo test --workspace --verbose
 
