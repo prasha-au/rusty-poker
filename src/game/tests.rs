@@ -10,43 +10,35 @@ fn should_play_out_a_game() {
 
   assert_eq!(Phase::Init, game.phase);
 
-  // pre-flop
-
   game.next();
   assert_eq!(Phase::PreFlop, game.phase);
   for (i, p) in game.players.iter().enumerate() {
     println!("Player {} {}", i, p.hand);
   }
 
-  game.action_current_player(CurrentPlayerAction::Raise(50)).unwrap();
-  game.action_current_player(CurrentPlayerAction::Call).unwrap();
+  game.action_current_player(BettingAction::Raise(50)).unwrap();
+  game.action_current_player(BettingAction::Call).unwrap();
 
-
-  // flop
 
   game.next();
   assert_eq!(Phase::Flop, game.phase);
   println!("THE TABLE: {}", game.table);
-  game.action_current_player(CurrentPlayerAction::Call).unwrap();
-  game.action_current_player(CurrentPlayerAction::Raise(50)).unwrap();
-  game.action_current_player(CurrentPlayerAction::Call).unwrap();
+  game.action_current_player(BettingAction::Call).unwrap();
+  game.action_current_player(BettingAction::Raise(50)).unwrap();
+  game.action_current_player(BettingAction::Call).unwrap();
 
-
-  // turn
 
   game.next();
   assert_eq!(Phase::Turn, game.phase);
   println!("THE TABLE: {}", game.table);
-  game.action_current_player(CurrentPlayerAction::Call).unwrap();
-  game.action_current_player(CurrentPlayerAction::Call).unwrap();
-
-  // river
+  game.action_current_player(BettingAction::Call).unwrap();
+  game.action_current_player(BettingAction::Call).unwrap();
 
   game.next();
   assert_eq!(Phase::River, game.phase);
   println!("THE TABLE: {}", game.table);
-  game.action_current_player(CurrentPlayerAction::Raise(50)).unwrap();
-  game.action_current_player(CurrentPlayerAction::Call).unwrap();
+  game.action_current_player(BettingAction::Raise(50)).unwrap();
+  game.action_current_player(BettingAction::Call).unwrap();
 
 
   game.next();
@@ -76,3 +68,30 @@ fn should_play_out_a_game() {
     assert_eq!(500, game.players[1].wallet);
   }
 }
+
+#[test]
+fn should_iterate_multiple_rounds() {
+  let mut game = Game::create(2);
+  game.load_credit(0, 500);
+  game.load_credit(1, 500);
+  for _ in 0..4 {
+    assert_eq!(Phase::Init, game.phase);
+
+    while game.phase != Phase::Showdown {
+      game.next();
+      while let Some(_) = game.get_current_player() {
+        game.action_current_player(BettingAction::Call).unwrap();
+      }
+    }
+    game.next();
+
+    for (i, p) in game.players.iter().enumerate() {
+      println!("Final wallet values {} ${}", i, p.wallet);
+    }
+  }
+}
+
+
+
+
+

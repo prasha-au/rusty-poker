@@ -1,6 +1,6 @@
 
-
-pub enum CurrentPlayerAction {
+#[derive(Debug)]
+pub enum BettingAction {
   Fold,
   Call,
   Raise(u32),
@@ -51,23 +51,20 @@ impl BettingRound {
     self.final_player_index = start_on;
   }
 
-  pub fn action_current_player(&mut self, action: CurrentPlayerAction) -> Result<(), &'static str> {
+  pub fn action_current_player(&mut self, action: BettingAction) -> Result<(), &'static str> {
     if self.is_complete {
       return Err("Betting has concluded.");
     }
 
     let player = &mut self.player_bets[self.current_player_index as usize];
-
-    println!("Actioning for player {}", self.current_player_index);
-
     match action {
-      CurrentPlayerAction::Fold => {
+      BettingAction::Fold => {
         player.is_folded = true;
       }
-      CurrentPlayerAction::Call => {
+      BettingAction::Call => {
         player.money_on_table = self.current_bet;
       }
-      CurrentPlayerAction::Raise(bet) => {
+      BettingAction::Raise(bet) => {
         if bet < self.current_bet {
           return Err("Raise must be greater than current bet");
         }
@@ -75,7 +72,7 @@ impl BettingRound {
         self.current_bet = bet;
         self.final_player_index = self.current_player_index;
       }
-      CurrentPlayerAction::AllIn(total) => {
+      BettingAction::AllIn(total) => {
         player.money_on_table = total;
         player.is_all_in = true;
         if total > self.current_bet {
@@ -103,6 +100,15 @@ impl BettingRound {
     self.is_complete
   }
 
+  pub fn get_current_player_index(&self) -> u8 {
+    self.current_player_index
+  }
+
+  pub fn get_current_bet(&self) -> u32 {
+    self.current_bet
+  }
+
+
   pub fn set_player_folded(&mut self, player: u8) {
     self.player_bets[player as usize].is_folded = true;
   }
@@ -121,6 +127,7 @@ impl BettingRound {
     }
     active_indexes
   }
+
 
 }
 

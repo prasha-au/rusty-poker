@@ -58,7 +58,7 @@ impl Game {
 
 
   pub fn load_credit(&mut self, player_index: u8, credit: u32) {
-    self.players[usize::from(player_index)].wallet += credit;
+    self.players[player_index as usize].wallet += credit;
   }
 
 
@@ -78,7 +78,7 @@ impl Game {
 
 
 
-  // Returns true if we are done...
+  // Returns true if only 1 player is left
   fn perform_post_round(&mut self) -> bool {
     let player_bets = self.betting_round.get_player_bets();
     let mut add_to_pot = 0;
@@ -95,16 +95,44 @@ impl Game {
   }
 
 
-
-
-
-  pub fn action_current_player(&mut self, action: CurrentPlayerAction) -> Result<(), &'static str> {
-    // TODO: check if the player has enough funds...
-    if self.betting_round.action_current_player(action).is_err() {
-      Err("Failed when trying to action player")
+  pub fn get_current_player(&self) -> Option<&Player> {
+    if self.phase == Phase::Showdown || self.phase == Phase::Init || self.betting_round.is_complete() {
+      None
     } else {
-      Ok(())
+      Some(&self.players[self.betting_round.get_current_player_index() as usize])
     }
+  }
+
+
+  pub fn action_current_player(&mut self, action: BettingAction) -> Result<(), &'static str> {
+    let player = self.get_current_player();
+    if player.is_none() {
+      return Err("This is not the right time to bet.")
+    }
+
+    let player = player.unwrap();
+    println!("Actioning {:?} for player {}", action, self.betting_round.get_current_player_index());
+
+
+    if let BettingAction::Raise(amount) = action {
+      if amount > player.wallet {
+        return Err("Cannot raise more than you have!");
+      } else if amount == player.wallet {
+        return Err("You must go all in.");
+      }
+    } else if let BettingAction::Call = action {
+      if self.betting_round.get_current_bet() > player.wallet {
+        return Err("Cannot call more than you have!");
+      } else if self.betting_round.get_current_bet() == player.wallet {
+        return Err("You must go all in.");
+      }
+    } else if let BettingAction::AllIn(amount) = action {
+      if amount != player.wallet {
+        return Err("Must go all in with your entire wallet.");
+      }
+    }
+
+    self.betting_round.action_current_player(action)
   }
 
 
@@ -112,6 +140,12 @@ impl Game {
     let num_players = u8::try_from(self.players.len()).unwrap();
 
     self.pot = 0;
+    self.dealer_index = self.increment_player_index(self.dealer_index, 1);
+
+    // TODO: Loop until we find someone with enough money to post blinds...
+    self.betting_round.initialize(self.increment_player_index(self.dealer_index, 1));
+    self.betting_round.action_current_player(BettingAction::Raise(self.blind / 2)).unwrap();
+    self.betting_round.action_current_player(BettingAction::Raise(self.blind)).unwrap();
 
     self.available_cards = Deck::full_deck();
     for i in 0..num_players {
@@ -123,12 +157,6 @@ impl Game {
       let player_index = self.increment_player_index(self.dealer_index, i);
       self.players[player_index as usize].hand.add_card(card);
     }
-
-
-    // TODO: Loop until we find someone with enough money to post blinds...
-    self.betting_round.initialize(self.increment_player_index(self.dealer_index, 1));
-    self.betting_round.action_current_player(CurrentPlayerAction::Raise(self.blind / 2)).unwrap();
-    self.betting_round.action_current_player(CurrentPlayerAction::Raise(self.blind)).unwrap();
 
     Ok(())
   }
@@ -169,7 +197,6 @@ impl Game {
 
 
 impl Iterator for Game {
-
   type Item = Phase;
 
   fn next(&mut self) -> Option<Self::Item> {
