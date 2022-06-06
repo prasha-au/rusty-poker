@@ -8,8 +8,9 @@ use betting_round::*;
 
 
 
-
+#[derive(Debug, PartialEq, Copy, Clone)]
 enum Phase {
+  Init,
   PreFlop,
   Flop,
   Turn,
@@ -24,30 +25,8 @@ struct Player {
 }
 
 
-
-
-
-struct GameRound {
-  pot: u32,
-  phase: Phase,
-  available_cards: Deck,
-  table: Deck,
-  player_cards: Vec<Deck>,
-  players_wallets: Vec<u32>,
-}
-
-
-
-
-
-
-
-
-
-
-
-
 struct Game {
+  phase: Phase,
   pot: u32,
   available_cards: Deck,
   table: Deck,
@@ -63,6 +42,7 @@ impl Game {
 
   pub fn create(player_count: u8) -> Game {
     Game {
+      phase: Phase::Init,
       pot: 0,
       available_cards: Deck::full_deck(),
       table: Deck::new(),
@@ -119,18 +99,16 @@ impl Game {
 
 
   pub fn action_current_player(&mut self, action: CurrentPlayerAction) -> Result<(), &'static str> {
-
     // TODO: check if the player has enough funds...
     if self.betting_round.action_current_player(action).is_err() {
-      panic!("Failed when trying to action player");
+      Err("Failed when trying to action player")
+    } else {
+      Ok(())
     }
-
-    Ok(())
   }
 
 
-
-  pub fn deal_pre_flop(&mut self) -> Result<(), &'static str> {
+  fn deal_pre_flop(&mut self) -> Result<(), &'static str> {
     let num_players = u8::try_from(self.players.len()).unwrap();
 
     self.pot = 0;
@@ -156,52 +134,16 @@ impl Game {
   }
 
 
-  pub fn deal_flop(&mut self) -> Result<(), &'static str> {
-    if !self.betting_round.is_complete() {
-      return Err("Betting is not complete. Cannot deal flop.");
-    }
-
-    if self.perform_post_round() {
-      return Ok(());
-    }
-
-    for _ in 0..3 {
+  fn deal_cards_to_table(&mut self, num_cards: u8) {
+    for _ in 0..num_cards {
       let card = self.pick_available_card();
       self.table.add_card(card);
     }
-    Ok(())
   }
 
-  pub fn deal_turn(&mut self) -> Result<(), &'static str> {
-    if !self.betting_round.is_complete() {
-      return Err("Betting is not complete. Cannot deal flop.");
-    }
-
-    if self.perform_post_round() {
-      return Ok(());
-    }
-
-    let card = self.pick_available_card();
-    self.table.add_card(card);
-    Ok(())
-  }
-
-  pub fn deal_river(&mut self) -> Result<(), &'static str> {
-    if !self.betting_round.is_complete() {
-      return Err("Betting is not complete. Cannot deal river.");
-    }
-
-    if self.perform_post_round() {
-      return Ok(());
-    }
-
-    let card = self.pick_available_card();
-    self.table.add_card(card);
-    Ok(())
-  }
 
   // TODO: Winners here may not all have an equal share of the pot
-  pub fn finalize(&mut self) -> Result<(), &'static str> {
+  fn finalize(&mut self) {
     let active_indexes = self.betting_round.get_active_player_indexes();
     let active_scores = active_indexes.iter().map(|i| {
       let player = &self.players[*i as usize];
@@ -218,81 +160,76 @@ impl Game {
     for idx in winning_indexes {
       self.players[idx as usize].wallet += self.pot / num_winners as u32;
     }
-
-
-    Ok(())
   }
-
-
 }
 
 
 
 
 
-pub fn test_game() {
 
-  let mut game = Game::create(2);
+impl Iterator for Game {
 
-  game.load_credit(0, 500);
-  game.load_credit(1, 500);
+  type Item = Phase;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    println!("Next starts with {:?}", self.phase);
 
 
+    if !self.betting_round.is_complete() && self.phase != Phase::Showdown && self.phase != Phase::Init {
+      return Some(self.phase);
+    }
 
 
-  // pre-flop
-  println!("========= Dealing pre-flop ========");
-  game.deal_pre_flop().unwrap();
-  for (i, p) in game.players.iter().enumerate() {
-    println!("Player {} {}", i, p.hand);
+    match self.phase {
+      Phase::Init => {
+        if self.deal_pre_flop().is_ok() {
+          self.phase = Phase::PreFlop;
+        }
+      },
+      Phase::PreFlop => {
+        if self.perform_post_round() {
+          self.phase = Phase::Showdown;
+        } else {
+          println!("========= Dealing flop ========");
+          self.deal_cards_to_table(3);
+          self.phase = Phase::Flop;
+        }
+      }
+      Phase::Flop => {
+        if self.perform_post_round() {
+          self.phase = Phase::Showdown;
+        } else {
+          println!("========= Dealing turn ========");
+          self.deal_cards_to_table(1);
+          self.phase = Phase::Turn;
+        }
+      }
+      Phase::Turn => {
+        if self.perform_post_round() {
+          self.phase = Phase::Showdown;
+        } else {
+          println!("========= Dealing river ========");
+          self.deal_cards_to_table(1);
+          self.phase = Phase::River;
+        }
+      },
+      Phase::River => {
+        self.perform_post_round();
+        self.phase = Phase::Showdown;
+      },
+      Phase::Showdown => {
+        self.finalize();
+        self.phase = Phase::Init;
+      }
+    };
+
+    println!("Next is going to {:?}", self.phase);
+    Some(self.phase)
+
   }
-
-
-  println!("Game has a pot of {}", game.pot);
-  game.action_current_player(CurrentPlayerAction::Raise(50)).unwrap();
-  game.action_current_player(CurrentPlayerAction::Call).unwrap();
-
-  println!("Game has a pot of {}", game.pot);
-
-  // flop
-  println!("========= Dealing flop ========");
-  game.deal_flop().unwrap();
-  println!("THE TABLE: {}", game.table);
-  game.action_current_player(CurrentPlayerAction::Call).unwrap();
-  game.action_current_player(CurrentPlayerAction::Raise(50)).unwrap();
-  game.action_current_player(CurrentPlayerAction::Call).unwrap();
-
-
-  // turn
-  println!("========= Dealing turn ========");
-  game.deal_turn().unwrap();
-  println!("THE TABLE: {}", game.table);
-  game.action_current_player(CurrentPlayerAction::Call).unwrap();
-  game.action_current_player(CurrentPlayerAction::Call).unwrap();
-
-  // river
-  println!("========= Dealing river ========");
-  game.deal_river().unwrap();
-  println!("THE TABLE: {}", game.table);
-
-  for (i, p) in game.players.iter().enumerate() {
-    let score = get_hand_score(&game.table, &p.hand);
-    println!("Player {} {} {:?} ({:?})", i, p.hand, score, get_hand_for_score(score));
-  }
-
-  game.finalize().unwrap();
-
-
-
-  for (i, p) in game.players.iter().enumerate() {
-    println!("Player {} ${}", i, p.wallet);
-  }
-
-
-
 
 }
-
 
 
 
