@@ -23,7 +23,7 @@ pub enum Phase {
 
 pub struct Player {
   hand: Deck,
-  wallet: u32,
+  pub wallet: u32,
 }
 
 
@@ -97,6 +97,11 @@ impl Game {
   }
 
 
+  pub fn get_players(&self) -> Vec<&Player> {
+    self.players.iter().map(|p| p).collect()
+  }
+
+
   pub fn get_current_player(&self) -> Option<&Player> {
     if self.phase == Phase::Showdown || self.phase == Phase::Init || self.betting_round.is_complete() {
       None
@@ -105,6 +110,9 @@ impl Game {
     }
   }
 
+  pub fn get_current_bet(&self) -> u32 {
+    self.betting_round.get_current_bet()
+  }
 
   pub fn action_current_player(&mut self, action: BettingAction) -> Result<(), &'static str> {
     let player = self.get_current_player();
@@ -139,26 +147,29 @@ impl Game {
 
 
   fn deal_pre_flop(&mut self) -> Result<(), &'static str> {
-    let num_players = u8::try_from(self.players.len()).unwrap();
-
     self.pot = 0;
     self.dealer_index = self.increment_player_index(self.dealer_index, 1);
 
-    // TODO: Loop until we find someone with enough money to post blinds...
     self.betting_round.initialize(self.increment_player_index(self.dealer_index, 1));
     self.betting_round.action_current_player(BettingAction::Raise(self.blind / 2)).unwrap();
     self.betting_round.action_current_player(BettingAction::Raise(self.blind)).unwrap();
 
+
+
+
     self.available_cards = Deck::full_deck();
     self.table = Deck::new();
-    for i in 0..num_players {
+    for i in 0..self.players.len() {
       self.players[i as usize].hand = Deck::new()
     }
 
-    for i in 0..(num_players * 2) {
-      let card = self.pick_available_card();
-      let player_index = self.increment_player_index(self.dealer_index, i);
-      self.players[player_index as usize].hand.add_card(card);
+
+    let active_players = self.betting_round.get_active_player_indexes();
+    for _ in 0..2 {
+      for idx in active_players.iter() {
+        let card = self.pick_available_card();
+        self.players[*idx as usize].hand.add_card(card);
+      }
     }
 
     Ok(())
@@ -182,7 +193,10 @@ impl Game {
     }).collect::<Vec<u32>>();
     let winning_score = active_scores.iter().max().unwrap();
 
-    let winning_indexes = active_indexes.iter().filter(|i| active_scores[**i as usize] == *winning_score).map(|i| *i).collect::<Vec<u8>>();
+
+    let winning_indexes = active_indexes.iter().enumerate()
+      .filter(|(i, _)| active_scores[*i] == *winning_score)
+      .map(|(_, v)| *v).collect::<Vec<u8>>();
     let num_winners = winning_indexes.iter().count();
 
     println!("Table: {}", self.table);
@@ -204,13 +218,9 @@ impl Iterator for Game {
   type Item = Phase;
 
   fn next(&mut self) -> Option<Self::Item> {
-    println!("Next starts with {:?}", self.phase);
-
-
     if !self.betting_round.is_complete() && self.phase != Phase::Showdown && self.phase != Phase::Init {
       return Some(self.phase);
     }
-
 
     match self.phase {
       Phase::Init => {
@@ -220,6 +230,8 @@ impl Iterator for Game {
       },
       Phase::PreFlop => {
         if self.perform_post_round() {
+          println!("========= Dealing flop and going to showdown ========");
+          self.deal_cards_to_table(3);
           self.phase = Phase::Showdown;
         } else {
           println!("========= Dealing flop ========");
@@ -246,24 +258,22 @@ impl Iterator for Game {
         }
       },
       Phase::River => {
+        println!("========= Showdown ========");
         self.perform_post_round();
         self.phase = Phase::Showdown;
       },
       Phase::Showdown => {
         self.finalize();
+        let valid_players = self.players.iter().filter(|p| p.wallet >= self.blind).count();
+        if valid_players < 2 {
+          return None;
+        }
         self.phase = Phase::Init;
       }
     };
-
-    println!("Next is going to {:?}", self.phase);
     Some(self.phase)
-
   }
-
 }
-
-
-
 
 
 
