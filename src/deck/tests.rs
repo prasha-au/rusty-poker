@@ -1,6 +1,6 @@
 
 
-use crate::Card;
+use crate::card::Card;
 use crate::deck::*;
 
 

@@ -7,9 +7,11 @@ use crate::evaluator::*;
 use betting_round::*;
 
 
+pub use betting_round::BettingAction;
+
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-enum Phase {
+pub enum Phase {
   Init,
   PreFlop,
   Flop,
@@ -19,13 +21,13 @@ enum Phase {
 }
 
 
-struct Player {
+pub struct Player {
   hand: Deck,
   wallet: u32,
 }
 
 
-struct Game {
+pub struct Game {
   phase: Phase,
   pot: u32,
   available_cards: Deck,
@@ -148,6 +150,7 @@ impl Game {
     self.betting_round.action_current_player(BettingAction::Raise(self.blind)).unwrap();
 
     self.available_cards = Deck::full_deck();
+    self.table = Deck::new();
     for i in 0..num_players {
       self.players[i as usize].hand = Deck::new()
     }
@@ -182,7 +185,10 @@ impl Game {
     let winning_indexes = active_indexes.iter().filter(|i| active_scores[**i as usize] == *winning_score).map(|i| *i).collect::<Vec<u8>>();
     let num_winners = winning_indexes.iter().count();
 
-
+    println!("Table: {}", self.table);
+    for (i, p) in self.players.iter().enumerate() {
+      println!("Player {} {}", i, p.hand);
+    }
     println!("Pot of ${} will be split between {} winners: {:?}", self.pot, num_winners, winning_indexes);
 
     for idx in winning_indexes {
@@ -190,8 +196,6 @@ impl Game {
     }
   }
 }
-
-
 
 
 
