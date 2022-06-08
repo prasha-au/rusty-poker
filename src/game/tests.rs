@@ -28,7 +28,6 @@ fn should_play_out_a_game() {
   game.next();
   assert_eq!(Phase::Turn, game.phase);
   println!("THE TABLE: {}", game.table);
-  println!("debuggy {:?}", game.betting_round.get_active_player_indexes());
   game.action_current_player(BettingAction::Call).unwrap();
   game.action_current_player(BettingAction::Call).unwrap();
 
@@ -119,6 +118,15 @@ fn should_select_the_player_past_blind_to_start_on_preflop() {
   assert_eq!(4, game.get_current_player().unwrap().id);
 }
 
+
+#[test]
+fn should_select_the_player_past_blind_to_start_on_preflop_circular() {
+  let mut game = Game::create(3, 500);
+  game.next();
+  assert_eq!(Phase::PreFlop, game.phase);
+  assert_eq!(1, game.dealer_id);
+  assert_eq!(1, game.get_current_player().unwrap().id);
+}
 
 #[test]
 fn should_let_big_blind_bet() {

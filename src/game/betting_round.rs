@@ -118,12 +118,10 @@ impl BettingRound {
       }
     };
 
-    println!("Debug yo {} {}", self.current_player_index, self.final_player_index);
     if self.current_player_index == self.final_player_index {
       self.is_complete = true;
       return Ok(());
     }
-
 
     let new_final = &self.player_bets[self.final_player_index as usize];
 
@@ -159,7 +157,7 @@ impl BettingRound {
     self.player_bets.iter().map(|p| p.money_on_table).collect()
   }
 
-  pub fn get_active_player_indexes(&self) -> Vec<u8> {
+  fn get_active_player_indexes(&self) -> Vec<u8> {
     self.player_bets.iter().enumerate()
       .filter(|(_, p)| p.is_active())
       .map(|(i, _)| i as u8).collect()
