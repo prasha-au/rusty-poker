@@ -137,8 +137,14 @@ impl Game {
   }
 
 
-  fn deal_pre_flop(&mut self) -> Result<(), &'static str> {
+
+  fn init_round(&mut self) {
     self.pot = 0;
+    self.available_cards = Deck::full_deck();
+    self.table = Deck::new();
+    for i in 0..self.players.len() {
+      self.players[i].hand = Deck::new()
+    }
 
     while let Some(idx) = self.players.iter().position(|p| p.wallet < self.blind) {
       let player = self.players.remove(idx);
@@ -147,7 +153,6 @@ impl Game {
 
     let num_players = self.players.len() as u8;
     println!("we have {} active players this round", num_players);
-
     if num_players < 2 {
       panic!("We do not have enough players.");
     }
@@ -172,15 +177,11 @@ impl Game {
     self.betting_round.action_current_player(BettingAction::Raise(self.blind / 2)).unwrap();
     self.betting_round.action_current_player(BettingAction::Raise(self.blind)).unwrap();
     self.betting_round.set_new_start_position(new_index + 2);
+  }
 
 
-    self.available_cards = Deck::full_deck();
-    self.table = Deck::new();
-    for i in 0..self.players.len() {
-      self.players[i as usize].hand = Deck::new()
-    }
 
-
+  fn deal_cards_to_players(&mut self) {
     let active_players = self.betting_round.get_active_player_indexes();
     for _ in 0..2 {
       for idx in active_players.iter() {
@@ -188,9 +189,64 @@ impl Game {
         self.players[*idx as usize].hand.add_card(card);
       }
     }
-
-    Ok(())
   }
+
+
+
+  // fn deal_pre_flop(&mut self) -> Result<(), &'static str> {
+  //   // self.pot = 0;
+
+  //   // while let Some(idx) = self.players.iter().position(|p| p.wallet < self.blind) {
+  //   //   let player = self.players.remove(idx);
+  //   //   self.inactive_players.push(player);
+  //   // }
+
+  //   // let num_players = self.players.len() as u8;
+  //   // println!("we have {} active players this round", num_players);
+
+  //   // if num_players < 2 {
+  //   //   panic!("We do not have enough players.");
+  //   // }
+
+  //   // // TODO: This is terrible... Find a better way to write this
+  //   // let total_players = (self.players.len() + self.inactive_players.len()) as u8;
+  //   // loop {
+  //   //   self.dealer_id = (self.dealer_id + 1) % total_players;
+  //   //   if let Some(_) = self.players.iter().find(|p| p.id == self.dealer_id) {
+  //   //     break;
+  //   //   }
+  //   // }
+  //   // println!("New dealer is {}", self.dealer_id);
+
+  //   // self.betting_round = BettingRound::create_for_players(num_players);
+
+  //   // // TODO: Refactor this copy paste...
+  //   // let dealer_index = self.players.iter().position(|p| p.id == self.dealer_id).unwrap() as u8;
+  //   // let new_index = (dealer_index + 1) % self.players.len() as u8;
+  //   // self.betting_round.set_new_start_position(new_index as u8);
+
+  //   // self.betting_round.action_current_player(BettingAction::Raise(self.blind / 2)).unwrap();
+  //   // self.betting_round.action_current_player(BettingAction::Raise(self.blind)).unwrap();
+  //   // self.betting_round.set_new_start_position(new_index + 2);
+
+
+  //   self.available_cards = Deck::full_deck();
+  //   self.table = Deck::new();
+  //   for i in 0..self.players.len() {
+  //     self.players[i as usize].hand = Deck::new()
+  //   }
+
+
+  //   let active_players = self.betting_round.get_active_player_indexes();
+  //   for _ in 0..2 {
+  //     for idx in active_players.iter() {
+  //       let card = self.pick_available_card();
+  //       self.players[*idx as usize].hand.add_card(card);
+  //     }
+  //   }
+
+  //   Ok(())
+  // }
 
 
   fn deal_cards_to_table(&mut self, num_cards: u8) {
@@ -240,10 +296,10 @@ impl Iterator for Game {
 
     match self.phase {
       Phase::Init => {
+        self.init_round();
         println!("========= Dealing pre-flop ========");
-        if self.deal_pre_flop().is_ok() {
-          self.phase = Phase::PreFlop;
-        }
+        self.deal_cards_to_players();
+        self.phase = Phase::PreFlop;
       },
       Phase::PreFlop => {
         self.perform_post_round();
