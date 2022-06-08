@@ -24,8 +24,7 @@ pub enum Phase {
 pub struct Player {
   pub id: u8,
   hand: Deck,
-  pub wallet: u32,
-  is_active: bool,
+  pub wallet: u32
 }
 
 
@@ -38,7 +37,7 @@ pub struct Game {
   dealer_id: u8,
   blind: u32,
   players: Vec<Player>,
-  // inactive_players: Vec<Player>,
+  inactive_players: Vec<Player>,
 }
 
 
@@ -57,9 +56,8 @@ impl Game {
         id,
         hand: Deck::new(),
         wallet: initial_credit,
-        is_active: true,
       }).collect(),
-      // inactive_players: Vec::new(),
+      inactive_players: Vec::new(),
       betting_round: BettingRound::create_for_players(player_count)
     }
   }
@@ -88,7 +86,10 @@ impl Game {
 
 
   pub fn get_all_players(&self) -> Vec<&Player> {
-    self.players.iter().map(|p| p).collect::<Vec<&Player>>()
+    let mut players = self.players.iter().map(|p| p).collect::<Vec<&Player>>();
+    let inactive_players = self.inactive_players.iter().map(|p| p);
+    players.extend(inactive_players);
+    players
   }
 
 
@@ -139,16 +140,12 @@ impl Game {
   fn deal_pre_flop(&mut self) -> Result<(), &'static str> {
     self.pot = 0;
 
-    for p in &mut self.players {
-      if p.wallet < self.blind {
-        p.is_active = false;
-      }
+    while let Some(idx) = self.players.iter().position(|p| p.wallet < self.blind) {
+      let player = self.players.remove(idx);
+      self.inactive_players.push(player);
     }
 
-    let active_players = self.players.iter().filter(|p| p.is_active).collect::<Vec<&Player>>();
-
-    let total_players = self.players.len() as u8;
-    let num_players = active_players.len() as u8;
+    let num_players = self.players.len() as u8;
     println!("we have {} active players this round", num_players);
 
     if num_players < 2 {
@@ -156,11 +153,10 @@ impl Game {
     }
 
     // TODO: This is terrible... Find a better way to write this
-    let mut dealer_index = self.players.iter().position(|p| p.id == self.dealer_id).unwrap() as u8;
+    let total_players = (self.players.len() + self.inactive_players.len()) as u8;
     loop {
-      dealer_index = (dealer_index + 1) % total_players;
-      if active_players[dealer_index as usize].is_active {
-        self.dealer_id = active_players[dealer_index as usize].id;
+      self.dealer_id = (self.dealer_id + 1) % total_players;
+      if let Some(_) = self.players.iter().find(|p| p.id == self.dealer_id) {
         break;
       }
     }
@@ -169,6 +165,7 @@ impl Game {
     self.betting_round = BettingRound::create_for_players(num_players);
 
     // TODO: Refactor this copy paste...
+    let dealer_index = self.players.iter().position(|p| p.id == self.dealer_id).unwrap() as u8;
     let new_index = (dealer_index + 1) % self.players.len() as u8;
     self.betting_round.set_new_start_position(new_index as u8);
 

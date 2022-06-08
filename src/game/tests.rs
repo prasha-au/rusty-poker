@@ -28,8 +28,10 @@ fn should_play_out_a_game() {
   game.next();
   assert_eq!(Phase::Turn, game.phase);
   println!("THE TABLE: {}", game.table);
+  println!("debuggy {:?}", game.betting_round.get_active_player_indexes());
   game.action_current_player(BettingAction::Call).unwrap();
   game.action_current_player(BettingAction::Call).unwrap();
+
 
   game.next();
   assert_eq!(Phase::River, game.phase);

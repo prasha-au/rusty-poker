@@ -40,7 +40,7 @@ impl BettingRound {
         is_all_in: false,
       }).collect(),
       current_player_index: 0,
-      final_player_index: 0,
+      final_player_index: players - 1,
       is_complete: false,
     }
   }
@@ -51,7 +51,23 @@ impl BettingRound {
     for p in &mut self.player_bets {
       p.money_on_table = 0;
     }
+    self.set_new_start_position(self.current_player_index + 1);
   }
+
+
+  // TODO: Refactor this into a find circular function
+  fn get_prev_active_index(&self, start_index: u8) -> u8 {
+    let plens = self.player_bets.len() as u8;
+    let mut prev_index = start_index;
+    loop {
+      prev_index = (plens + prev_index - 1) % plens;
+      if self.player_bets[prev_index as usize].is_active() {
+        return prev_index;
+      }
+    }
+  }
+
+
 
   pub fn set_new_start_position(&mut self, start_index: u8) {
     println!("num actives {:?}", self.get_active_player_indexes());
@@ -64,7 +80,8 @@ impl BettingRound {
       next_index = (next_index + 1) % self.player_bets.len() as u8;
     }
     self.current_player_index = next_index;
-    self.final_player_index = next_index;
+    self.final_player_index = self.get_prev_active_index(next_index);
+    println!("Set new start positions {} {}", self.current_player_index, self.final_player_index);
   }
 
 
@@ -87,26 +104,38 @@ impl BettingRound {
         }
         player.money_on_table = bet;
         self.current_bet = bet;
-        self.final_player_index = self.current_player_index;
+        self.final_player_index = self.get_prev_active_index(self.current_player_index);
+
       }
       BettingAction::AllIn(total) => {
         player.money_on_table = total;
         player.is_all_in = true;
         if total > self.current_bet {
           self.current_bet = total;
-          self.final_player_index = self.current_player_index;
+          self.final_player_index = self.get_prev_active_index(self.current_player_index);
         }
       }
     };
+
+    println!("Debug yo {} {}", self.current_player_index, self.final_player_index);
+    if self.current_player_index == self.final_player_index {
+      self.is_complete = true;
+      return Ok(());
+    }
+
+
+    let new_final = &self.player_bets[self.final_player_index as usize];
+
+    if !new_final.is_active() {
+      panic!("We are setting an invalid item as final player");
+    }
+
 
     loop {
       self.current_player_index = (self.current_player_index + 1) % self.player_bets.len() as u8;
       let next_player = &self.player_bets[self.current_player_index as usize];
       if !next_player.is_active() {
         continue;
-      }
-      if self.current_player_index == self.final_player_index {
-        self.is_complete = true;
       }
       break;
     }
