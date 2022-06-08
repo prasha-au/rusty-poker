@@ -3,10 +3,7 @@ use crate::game::*;
 
 #[test]
 fn should_play_out_a_game() {
-  let mut game = Game::create(2);
-
-  game.load_credit(0, 500);
-  game.load_credit(1, 500);
+  let mut game = Game::create(2, 500);
 
   assert_eq!(Phase::Init, game.phase);
 
@@ -83,9 +80,7 @@ fn play_round_of_calls(game: &mut Game) {
 
 #[test]
 fn should_reset_state_between_rounds() {
-  let mut game = Game::create(2);
-  game.load_credit(0, 500);
-  game.load_credit(1, 500);
+  let mut game = Game::create(2, 500);
   play_round_of_calls(&mut game);
 
   assert_eq!(Phase::Init, game.phase);
@@ -98,12 +93,9 @@ fn should_reset_state_between_rounds() {
 }
 
 
-
 #[test]
 fn should_iterate_multiple_rounds() {
-  let mut game = Game::create(2);
-  game.load_credit(0, 500);
-  game.load_credit(1, 500);
+  let mut game = Game::create(2, 500);
   for _ in 0..4 {
     assert_eq!(Phase::Init, game.phase);
 
@@ -114,4 +106,42 @@ fn should_iterate_multiple_rounds() {
     }
   }
 }
+
+
+#[test]
+fn should_select_the_player_past_blind_to_start_on_preflop() {
+  let mut game = Game::create(5, 500);
+  game.next();
+  assert_eq!(Phase::PreFlop, game.phase);
+  assert_eq!(1, game.dealer_id);
+  assert_eq!(4, game.get_current_player().unwrap().id);
+}
+
+
+#[test]
+fn should_let_big_blind_bet() {
+  let mut game = Game::create(3, 500);
+  game.next();
+  for _ in 0..2 {
+    game.action_current_player(BettingAction::Call).unwrap();
+  }
+  assert_eq!(Some(Phase::PreFlop), game.next());
+  assert_eq!(0, game.get_current_player().unwrap().id);
+}
+
+
+#[test]
+fn should_select_the_small_blind_player_to_start_on_other_phases() {
+  let mut game = Game::create(5, 500);
+  game.next();
+
+  assert_eq!(4, game.get_current_player().unwrap().id);
+  for _ in 0..5 {
+    game.action_current_player(BettingAction::Call).unwrap();
+  }
+  assert_eq!(Some(Phase::Flop), game.next());
+  assert_eq!(2, game.get_current_player().unwrap().id);
+}
+
+
 

@@ -22,8 +22,10 @@ pub enum Phase {
 
 
 pub struct Player {
+  pub id: u8,
   hand: Deck,
   pub wallet: u32,
+  is_active: bool,
 }
 
 
@@ -33,39 +35,33 @@ pub struct Game {
   available_cards: Deck,
   table: Deck,
   betting_round: BettingRound,
-  dealer_index: u8,
+  dealer_id: u8,
   blind: u32,
   players: Vec<Player>,
+  // inactive_players: Vec<Player>,
 }
 
 
 
 impl Game {
 
-  pub fn create(player_count: u8) -> Game {
+  pub fn create(player_count: u8, initial_credit: u32) -> Game {
     Game {
       phase: Phase::Init,
       pot: 0,
       available_cards: Deck::full_deck(),
       table: Deck::new(),
-      dealer_index: 0,
+      dealer_id: 0,
       blind: 20,
-      players: (0..player_count).map(|_| Player {
+      players: (0..player_count).map(|id| Player {
+        id,
         hand: Deck::new(),
-        wallet: 0,
+        wallet: initial_credit,
+        is_active: true,
       }).collect(),
+      // inactive_players: Vec::new(),
       betting_round: BettingRound::create_for_players(player_count)
     }
-  }
-
-
-  pub fn load_credit(&mut self, player_index: u8, credit: u32) {
-    self.players[player_index as usize].wallet += credit;
-  }
-
-
-  fn increment_player_index(&self, from_index: u8, value: u8) -> u8 {
-    (from_index + value) % self.players.len() as u8
   }
 
 
@@ -79,26 +75,20 @@ impl Game {
   }
 
 
-
-  // Returns true if only 1 player is left
-  fn perform_post_round(&mut self) -> bool {
+  fn perform_post_round(&mut self) {
     let player_bets = self.betting_round.get_player_bets();
     let mut add_to_pot = 0;
     for (i, bet_amount) in player_bets.iter().enumerate() {
       add_to_pot += bet_amount;
       self.players[i].wallet -= bet_amount;
-      // println!("New wallet value for {} is ${}", i, self.players[i].wallet);
     }
     self.pot += add_to_pot;
-
-    self.betting_round.initialize(self.increment_player_index(self.dealer_index, 1));
-
-    self.betting_round.get_active_player_indexes().iter().count() < 2
   }
 
 
-  pub fn get_players(&self) -> Vec<&Player> {
-    self.players.iter().map(|p| p).collect()
+
+  pub fn get_all_players(&self) -> Vec<&Player> {
+    self.players.iter().map(|p| p).collect::<Vec<&Player>>()
   }
 
 
@@ -121,7 +111,7 @@ impl Game {
     }
 
     let player = player.unwrap();
-    println!("Actioning {:?} for player {}", action, self.betting_round.get_current_player_index());
+    println!("Actioning {:?} for player {}", action, player.id);
 
 
     if let BettingAction::Raise(amount) = action {
@@ -148,13 +138,43 @@ impl Game {
 
   fn deal_pre_flop(&mut self) -> Result<(), &'static str> {
     self.pot = 0;
-    self.dealer_index = self.increment_player_index(self.dealer_index, 1);
 
-    self.betting_round.initialize(self.increment_player_index(self.dealer_index, 1));
+    for p in &mut self.players {
+      if p.wallet < self.blind {
+        p.is_active = false;
+      }
+    }
+
+    let active_players = self.players.iter().filter(|p| p.is_active).collect::<Vec<&Player>>();
+
+    let total_players = self.players.len() as u8;
+    let num_players = active_players.len() as u8;
+    println!("we have {} active players this round", num_players);
+
+    if num_players < 2 {
+      panic!("We do not have enough players.");
+    }
+
+    // TODO: This is terrible... Find a better way to write this
+    let mut dealer_index = self.players.iter().position(|p| p.id == self.dealer_id).unwrap() as u8;
+    loop {
+      dealer_index = (dealer_index + 1) % total_players;
+      if active_players[dealer_index as usize].is_active {
+        self.dealer_id = active_players[dealer_index as usize].id;
+        break;
+      }
+    }
+    println!("New dealer is {}", self.dealer_id);
+
+    self.betting_round = BettingRound::create_for_players(num_players);
+
+    // TODO: Refactor this copy paste...
+    let new_index = (dealer_index + 1) % self.players.len() as u8;
+    self.betting_round.set_new_start_position(new_index as u8);
+
     self.betting_round.action_current_player(BettingAction::Raise(self.blind / 2)).unwrap();
     self.betting_round.action_current_player(BettingAction::Raise(self.blind)).unwrap();
-
-
+    self.betting_round.set_new_start_position(new_index + 2);
 
 
     self.available_cards = Deck::full_deck();
@@ -212,10 +232,9 @@ impl Game {
 }
 
 
-
-
 impl Iterator for Game {
   type Item = Phase;
+
 
   fn next(&mut self) -> Option<Self::Item> {
     if !self.betting_round.is_complete() && self.phase != Phase::Showdown && self.phase != Phase::Init {
@@ -224,37 +243,48 @@ impl Iterator for Game {
 
     match self.phase {
       Phase::Init => {
+        println!("========= Dealing pre-flop ========");
         if self.deal_pre_flop().is_ok() {
           self.phase = Phase::PreFlop;
         }
       },
       Phase::PreFlop => {
-        if self.perform_post_round() {
+        self.perform_post_round();
+        self.betting_round.restart();
+        if self.betting_round.get_num_active_players() > 1 {
+          println!("========= Dealing flop ========");
+          self.deal_cards_to_table(3);
+
+          let dealer_index = self.players.iter().position(|p| p.id == self.dealer_id).unwrap();
+          let new_index = (dealer_index + 1) % self.players.len();
+          self.betting_round.set_new_start_position(new_index as u8);
+          self.phase = Phase::Flop;
+        } else {
           println!("========= Dealing flop and going to showdown ========");
           self.deal_cards_to_table(3);
           self.phase = Phase::Showdown;
-        } else {
-          println!("========= Dealing flop ========");
-          self.deal_cards_to_table(3);
-          self.phase = Phase::Flop;
         }
       }
       Phase::Flop => {
-        if self.perform_post_round() {
-          self.phase = Phase::Showdown;
-        } else {
+        self.perform_post_round();
+        self.betting_round.restart();
+        if self.betting_round.get_num_active_players() > 1 {
           println!("========= Dealing turn ========");
           self.deal_cards_to_table(1);
           self.phase = Phase::Turn;
+        } else {
+          self.phase = Phase::Showdown;
         }
       }
       Phase::Turn => {
-        if self.perform_post_round() {
-          self.phase = Phase::Showdown;
-        } else {
+        self.perform_post_round();
+        self.betting_round.restart();
+        if self.betting_round.get_num_active_players() > 1 {
           println!("========= Dealing river ========");
           self.deal_cards_to_table(1);
           self.phase = Phase::River;
+        } else {
+          self.phase = Phase::Showdown;
         }
       },
       Phase::River => {

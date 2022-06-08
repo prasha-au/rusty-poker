@@ -7,11 +7,16 @@ pub enum BettingAction {
   AllIn(u32),
 }
 
-
 struct PlayerBet {
   money_on_table: u32,
   is_folded: bool,
   is_all_in: bool,
+}
+
+impl PlayerBet {
+  pub fn is_active(&self) -> bool {
+    !self.is_folded && !self.is_all_in
+  }
 }
 
 
@@ -40,16 +45,28 @@ impl BettingRound {
     }
   }
 
-  // TODO: Test this
-  pub fn initialize(&mut self, start_on: u8) {
+  pub fn restart(&mut self) {
     self.current_bet = 0;
     self.is_complete = false;
     for p in &mut self.player_bets {
       p.money_on_table = 0;
     }
-    self.current_player_index = start_on;
-    self.final_player_index = start_on;
   }
+
+  pub fn set_new_start_position(&mut self, start_index: u8) {
+    println!("num actives {:?}", self.get_active_player_indexes());
+    let active_indexes = self.get_active_player_indexes();
+    let mut next_index = start_index % self.player_bets.len() as u8;
+    loop {
+      if active_indexes.contains(&next_index) {
+        break;
+      }
+      next_index = (next_index + 1) % self.player_bets.len() as u8;
+    }
+    self.current_player_index = next_index;
+    self.final_player_index = next_index;
+  }
+
 
   pub fn action_current_player(&mut self, action: BettingAction) -> Result<(), &'static str> {
     if self.is_complete {
@@ -85,7 +102,7 @@ impl BettingRound {
     loop {
       self.current_player_index = (self.current_player_index + 1) % self.player_bets.len() as u8;
       let next_player = &self.player_bets[self.current_player_index as usize];
-      if next_player.is_folded || next_player.is_all_in {
+      if !next_player.is_active() {
         continue;
       }
       if self.current_player_index == self.final_player_index {
@@ -108,26 +125,19 @@ impl BettingRound {
     self.current_bet
   }
 
-
-  pub fn set_player_folded(&mut self, player: u8) {
-    self.player_bets[player as usize].is_folded = true;
-  }
-
   pub fn get_player_bets(&self) -> Vec<u32> {
     self.player_bets.iter().map(|p| p.money_on_table).collect()
   }
 
-  // TODO: Test this
   pub fn get_active_player_indexes(&self) -> Vec<u8> {
-    let mut active_indexes = Vec::new();
-    for (i, p) in self.player_bets.iter().enumerate() {
-      if !p.is_folded && !p.is_all_in {
-        active_indexes.push(i as u8);
-      }
-    }
-    active_indexes
+    self.player_bets.iter().enumerate()
+      .filter(|(_, p)| p.is_active())
+      .map(|(i, _)| i as u8).collect()
   }
 
+  pub fn get_num_active_players(&self) -> u8 {
+    self.player_bets.iter().filter(|p| p.is_active()).count() as u8
+  }
 
 }
 

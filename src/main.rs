@@ -4,11 +4,7 @@ use rusty_poker::*;
 fn main() {
   println!("Testing a game!");
 
-  let mut game = Game::create(4);
-  game.load_credit(0, 500);
-  game.load_credit(1, 500);
-  game.load_credit(2, 500);
-  game.load_credit(3, 500);
+  let mut game = Game::create(4, 500);
 
   let mut rounds_played = 0;
   while let Some(phase) = game.next() {
@@ -29,8 +25,8 @@ fn main() {
     }
   }
 
-  for (i, p) in game.get_players().iter().enumerate() {
-    println!("Player {} ends up with ${}", i, p.wallet);
+  for p in game.get_all_players().iter() {
+    println!("Player {} ends up with ${}", p.id, p.wallet);
   }
   println!("{} rounds played", rounds_played);
 
