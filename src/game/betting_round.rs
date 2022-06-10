@@ -71,7 +71,6 @@ impl BettingRound {
 
 
   pub fn set_new_start_position(&mut self, start_index: u8) {
-    println!("num actives {:?}", self.get_active_player_indexes());
     let active_indexes = self.get_active_player_indexes();
     let mut next_index = start_index % self.player_bets.len() as u8;
     loop {
@@ -82,7 +81,6 @@ impl BettingRound {
     }
     self.current_player_index = next_index;
     self.final_player_index = self.get_prev_active_index(next_index);
-    println!("Set new start positions {} {}", self.current_player_index, self.final_player_index);
   }
 
 

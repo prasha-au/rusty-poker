@@ -210,10 +210,6 @@ impl Game {
       .map(|(i, _)| i).collect::<Vec<usize>>();
     let num_winners = winning_indexes.iter().count();
 
-    println!("Table: {}", self.table);
-    for (i, p) in self.players.iter().enumerate() {
-      println!("Player {} {}", i, p.hand);
-    }
     println!("Pot of ${} will be split between {} winners: {:?}", self.pot, num_winners, winning_indexes);
 
     for idx in winning_indexes {
@@ -294,6 +290,33 @@ impl Iterator for Game {
     Some(self.phase)
   }
 }
+
+
+
+impl std::fmt::Display for Game {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
+
+    writeln!(f, "Pot: ${}   Table: {} ", self.pot, self.table)?;
+    writeln!(f, "Plyr      Cards      Bid     Wallet")?;
+    let player_bets = self.betting_round.get_player_bets();
+    let curr_player = self.get_current_player();
+    for (i, p) in self.players.iter().enumerate() {
+      writeln!(f, "{} {}{}    {}    ${}     ${}   ",
+        p.id,
+        if p.id == self.dealer_id { 'D' } else { ' ' },
+        if curr_player.is_some() && curr_player.unwrap().id == p.id { 'P' } else { ' ' },
+        p.hand,
+        player_bets[i],
+        p.wallet
+      )?;
+    }
+    write!(f, "")
+  }
+}
+
+
+
+
 
 
 

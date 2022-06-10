@@ -23,6 +23,6 @@ fn display_output() {
   assert_eq!(Card::new(Suit::Heart, Rank::Queen).to_string(), "♥Q");
   assert_eq!(Card::new(Suit::Club, Rank::Ace).to_string(), "♣A");
   assert_eq!(Card::new(Suit::Spade, Rank::Four).to_string(), "♠4");
-  assert_eq!(Card::new(Suit::Spade, Rank::Ten).to_string(), "♠10");
+  assert_eq!(Card::new(Suit::Spade, Rank::Ten).to_string(), "♠T");
 }
 

@@ -10,6 +10,7 @@ fn main() {
   while let Some(phase) = game.next() {
     if phase == Phase::Showdown {
       rounds_played = rounds_played + 1;
+      println!("{}", game);
     }
     if phase == Phase::Showdown || phase == Phase::Init {
       continue;

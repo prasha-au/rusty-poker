@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use strum_macros::EnumIter;
 
 #[repr(u8)]
@@ -52,7 +51,7 @@ impl std::fmt::Display for Rank {
         Rank::Seven => write!(f, "7"),
         Rank::Eight => write!(f, "8"),
         Rank::Nine => write!(f, "9"),
-        Rank::Ten => write!(f, "10"),
+        Rank::Ten => write!(f, "T"),
         Rank::Jack => write!(f, "J"),
         Rank::Queen => write!(f, "Q"),
         Rank::King => write!(f, "K"),
@@ -69,7 +68,7 @@ pub struct Card {
 }
 
 
-impl Display for Card {
+impl std::fmt::Display for Card {
   fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
     write!(f, "{}{}", self.suit, self.rank)
   }
