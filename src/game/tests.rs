@@ -1,79 +1,50 @@
 use crate::game::*;
+use crate::player::{CallingPlayer};
+
+
+fn create_players(num_players: u8) -> Vec<CallingPlayer> {
+  let mut players = Vec::new();
+  for i in 0..num_players {
+    players.push(CallingPlayer { id: i, wallet: 200 });
+  }
+  players
+}
+
+fn to_game_players<'a>(players: &'a mut Vec<CallingPlayer>) -> Vec<Box<&'a mut dyn Player>> {
+  players.iter_mut().map(|p| -> Box<&mut dyn Player> { Box::new(p) }).collect()
+}
 
 
 #[test]
-fn should_play_out_a_game() {
-  let mut game = Game::create(2, 500);
+fn should_progress_phases() {
+  let mut players = create_players(2);
+  let mut game = Game::create(to_game_players(&mut players));
 
   assert_eq!(Phase::Init, game.phase);
-
   game.next();
+
   assert_eq!(Phase::PreFlop, game.phase);
-  for (i, p) in game.players.iter().enumerate() {
-    println!("Player {} {}", i, p.hand);
-  }
+  for _ in 0..3 { game.next(); }
 
-  game.action_current_player(BettingAction::Raise(50)).unwrap();
-  game.action_current_player(BettingAction::Call).unwrap();
-
-
-  game.next();
   assert_eq!(Phase::Flop, game.phase);
-  println!("THE TABLE: {}", game.table);
-  game.action_current_player(BettingAction::Call).unwrap();
-  game.action_current_player(BettingAction::Raise(50)).unwrap();
-  game.action_current_player(BettingAction::Call).unwrap();
+  for _ in 0..3 { game.next(); }
 
-
-  game.next();
   assert_eq!(Phase::Turn, game.phase);
-  println!("THE TABLE: {}", game.table);
-  game.action_current_player(BettingAction::Call).unwrap();
-  game.action_current_player(BettingAction::Call).unwrap();
+  for _ in 0..3 { game.next(); }
 
-
-  game.next();
   assert_eq!(Phase::River, game.phase);
-  println!("THE TABLE: {}", game.table);
-  game.action_current_player(BettingAction::Raise(50)).unwrap();
-  game.action_current_player(BettingAction::Call).unwrap();
+  for _ in 0..3 { game.next(); }
 
-
-  game.next();
   assert_eq!(Phase::Showdown, game.phase);
 
-  for (i, p) in game.players.iter().enumerate() {
-    let score = get_hand_score(&game.table, &p.hand);
-    println!("Player {} {} {:?} ({:?})", i, p.hand, score, get_hand_for_score(score));
-  }
-
   game.next();
   assert_eq!(Phase::Init, game.phase);
-
-
-  for (i, p) in game.players.iter().enumerate() {
-    println!("Final wallet values {} ${}", i, p.wallet);
-  }
-
-  if game.players[0].wallet > game.players[1].wallet {
-    assert_eq!(650, game.players[0].wallet);
-    assert_eq!(350, game.players[1].wallet);
-  } else if game.players[0].wallet < game.players[1].wallet {
-    assert_eq!(350, game.players[0].wallet);
-    assert_eq!(650, game.players[1].wallet);
-  } else {
-    assert_eq!(500, game.players[0].wallet);
-    assert_eq!(500, game.players[1].wallet);
-  }
 }
 
 
 fn play_round_of_calls(game: &mut Game) {
   while game.phase != Phase::Showdown {
     game.next();
-    while let Some(_) = game.get_current_player() {
-      game.action_current_player(BettingAction::Call).unwrap();
-    }
   }
   game.next();
 }
@@ -81,14 +52,18 @@ fn play_round_of_calls(game: &mut Game) {
 
 #[test]
 fn should_reset_state_between_rounds() {
-  let mut game = Game::create(2, 500);
+  let mut players = create_players(2);
+  let mut game = Game::create(to_game_players(&mut players));
+
   play_round_of_calls(&mut game);
 
   assert_eq!(Phase::Init, game.phase);
   game.next();
-  assert_eq!(0, game.pot);
+  assert_eq!(Phase::PreFlop, game.phase);
+
+  assert_eq!(30, game.pot);
   assert_eq!(0, game.table.get_cards().len());
-  for p in &game.players {
+  for p in &game.active_seats {
     assert_eq!(2, p.hand.get_cards().len());
   }
 }
@@ -96,62 +71,56 @@ fn should_reset_state_between_rounds() {
 
 #[test]
 fn should_iterate_multiple_rounds() {
-  let mut game = Game::create(2, 500);
+  let mut players = create_players(2);
+  let mut game = Game::create(to_game_players(&mut players));
   for _ in 0..4 {
     assert_eq!(Phase::Init, game.phase);
-
     play_round_of_calls(&mut game);
-
-    for (i, p) in game.players.iter().enumerate() {
-      println!("Final wallet values {} ${}", i, p.wallet);
-    }
   }
 }
 
 
 #[test]
 fn should_select_the_player_past_blind_to_start_on_preflop() {
-  let mut game = Game::create(5, 500);
+  let mut players = create_players(5);
+  let mut game = Game::create(to_game_players(&mut players));
+  assert_eq!(Phase::Init, game.phase);
   game.next();
   assert_eq!(Phase::PreFlop, game.phase);
   assert_eq!(1, game.dealer_id);
-  assert_eq!(4, game.get_current_player().unwrap().id);
+  assert_eq!(4, game.get_current_seat().unwrap().player_index);
 }
 
 
 #[test]
 fn should_select_the_player_past_blind_to_start_on_preflop_circular() {
-  let mut game = Game::create(3, 500);
+  let mut players = create_players(3);
+  let mut game = Game::create(to_game_players(&mut players));
+  assert_eq!(Phase::Init, game.phase);
   game.next();
   assert_eq!(Phase::PreFlop, game.phase);
   assert_eq!(1, game.dealer_id);
-  assert_eq!(1, game.get_current_player().unwrap().id);
+  assert_eq!(1, game.get_current_seat().unwrap().player_index);
 }
 
 #[test]
 fn should_let_big_blind_bet() {
-  let mut game = Game::create(3, 500);
-  game.next();
-  for _ in 0..2 {
-    game.action_current_player(BettingAction::Call).unwrap();
-  }
+  let mut players = create_players(3);
+  let mut game = Game::create(to_game_players(&mut players));
+  for _ in 0..2 { game.next(); }
   assert_eq!(Some(Phase::PreFlop), game.next());
-  assert_eq!(0, game.get_current_player().unwrap().id);
+  assert_eq!(0, game.get_current_seat().unwrap().player_index);
 }
 
 
 #[test]
 fn should_select_the_small_blind_player_to_start_on_other_phases() {
-  let mut game = Game::create(5, 500);
-  game.next();
-
-  assert_eq!(4, game.get_current_player().unwrap().id);
-  for _ in 0..5 {
-    game.action_current_player(BettingAction::Call).unwrap();
-  }
+  let mut players = create_players(5);
+  let mut game = Game::create(to_game_players(&mut players));
+  assert_eq!(Some(Phase::PreFlop), game.next());
+  assert_eq!(4, game.get_current_seat().unwrap().player_index);
+  for _ in 0..5 { game.next(); }
   assert_eq!(Some(Phase::Flop), game.next());
-  assert_eq!(2, game.get_current_player().unwrap().id);
+  assert_eq!(2, game.get_current_seat().unwrap().player_index);
 }
-
-
 

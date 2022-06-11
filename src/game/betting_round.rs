@@ -84,46 +84,49 @@ impl BettingRound {
   }
 
 
-  pub fn action_current_player(&mut self, action: BettingAction) -> Result<(), &'static str> {
+  pub fn action_current_player(&mut self, action: BettingAction) -> Result<u32, &'static str> {
     if self.is_complete {
       return Err("Betting has concluded.");
     }
 
+    let previous_player_index = self.get_prev_active_index(self.current_player_index);
     let player = &mut self.player_bets[self.current_player_index as usize];
+    let mut value_to_subtract = 0;
     match action {
       BettingAction::Fold => {
         player.is_folded = true;
       }
       BettingAction::Call => {
+        value_to_subtract = self.current_bet - player.money_on_table;
         player.money_on_table = self.current_bet;
       }
       BettingAction::Raise(bet) => {
-        if bet < self.current_bet {
+        if (player.money_on_table + bet) < self.current_bet {
           return Err("Raise must be greater than current bet");
         }
-        player.money_on_table = bet;
-        self.current_bet = bet;
-        self.final_player_index = self.get_prev_active_index(self.current_player_index);
-
+        value_to_subtract = bet;
+        player.money_on_table += bet;
+        self.current_bet = player.money_on_table;
+        self.final_player_index = previous_player_index;
       }
-      BettingAction::AllIn(total) => {
-        player.money_on_table = total;
+      BettingAction::AllIn(remaining_amount) => {
+        value_to_subtract = remaining_amount;
+        player.money_on_table += remaining_amount;
         player.is_all_in = true;
-        if total > self.current_bet {
-          self.current_bet = total;
-          self.final_player_index = self.get_prev_active_index(self.current_player_index);
+        if player.money_on_table > self.current_bet {
+          self.current_bet = player.money_on_table;
+          self.final_player_index = previous_player_index;
         }
       }
     };
 
-    if self.current_player_index == self.final_player_index {
+    if self.current_player_index == self.final_player_index || self.get_num_active_players() == 1 {
       self.is_complete = true;
-      return Ok(());
+      return Ok(value_to_subtract);
     }
 
-    let new_final = &self.player_bets[self.final_player_index as usize];
-
-    if !new_final.is_active() {
+    let new_final_player = &self.player_bets[self.final_player_index as usize];
+    if !new_final_player.is_active() {
       panic!("We are setting an invalid item as final player");
     }
 
@@ -136,7 +139,7 @@ impl BettingRound {
       }
       break;
     }
-    Ok(())
+    Ok(value_to_subtract)
   }
 
   pub fn is_complete(&self) -> bool {
@@ -145,10 +148,6 @@ impl BettingRound {
 
   pub fn get_current_player_index(&self) -> u8 {
     self.current_player_index
-  }
-
-  pub fn get_current_bet(&self) -> u32 {
-    self.current_bet
   }
 
   pub fn get_player_bets(&self) -> Vec<u32> {
@@ -161,8 +160,14 @@ impl BettingRound {
       .map(|(i, _)| i as u8).collect()
   }
 
-  pub fn get_num_active_players(&self) -> u8 {
+  fn get_num_active_players(&self) -> u8 {
     self.player_bets.iter().filter(|p| p.is_active()).count() as u8
+  }
+
+
+  pub fn get_current_player_money_to_call(&self) -> u32 {
+    let player = &self.player_bets[self.current_player_index as usize];
+    self.current_bet - player.money_on_table
   }
 
 }

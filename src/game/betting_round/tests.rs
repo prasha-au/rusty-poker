@@ -92,9 +92,18 @@ fn correct_value_for_player_bets() {
 #[test]
 fn correct_value_for_active_player_indexes() {
   let mut br = BettingRound::create_for_players(3);
-  br.action_current_player(BettingAction::Fold).unwrap();
+  br.action_current_player(BettingAction::Call).unwrap();
   br.action_current_player(BettingAction::Fold).unwrap();
   br.action_current_player(BettingAction::Call).unwrap();
+  let active_indexes = br.get_active_player_indexes();
+  assert_eq!(vec![0, 2], active_indexes);
+}
+
+#[test]
+fn correct_value_for_active_player_indexes_when_others_fold() {
+  let mut br = BettingRound::create_for_players(3);
+  br.action_current_player(BettingAction::Fold).unwrap();
+  br.action_current_player(BettingAction::Fold).unwrap();
   let active_indexes = br.get_active_player_indexes();
   assert_eq!(vec![2], active_indexes);
 }
