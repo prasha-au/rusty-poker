@@ -13,6 +13,7 @@ strum = "0.24"
 strum_macros = "0.24"
 rand = "0.8.5"
 byteorder = "1.4.3"
+text_io = "0.1.10"
 
 [dev-dependencies]
 ntest = "0.7.2"

@@ -43,12 +43,10 @@ pub struct Game<'a> {
 
 
 pub trait Player {
-  fn get_id(&self) -> u8;
   fn get_wallet(&self) -> u32;
   fn add_to_wallet(&mut self, v: i32);
   fn request_action(&self, total_pot: u32, value_to_call: u32) -> BettingAction;
 }
-
 
 
 impl Game<'_> {
@@ -97,9 +95,9 @@ impl Game<'_> {
     }
     let player_index = player.unwrap().player_index;
 
-    let player = &mut self.players[player_index];
+    println!("Actioning {:?} for player at index {}", action, player_index);
 
-    println!("Actioning {:?} for player {}", action, player.get_id());
+    let player = &mut self.players[player_index];
 
     let wallet_value = player.get_wallet();
 
