@@ -1,4 +1,5 @@
 use crate::game::{Player,BettingAction};
+use crate::deck::{Deck};
 
 pub struct CallingPlayer {
   pub id: u8,
@@ -15,7 +16,7 @@ impl Player for CallingPlayer {
     self.wallet = u32::try_from(new_total).unwrap();
   }
 
-  fn request_action(&self, _total_pot: u32, value_to_call: u32) -> BettingAction {
+  fn request_action(&self, _total_pot: u32, value_to_call: u32, hand: Deck, table: Deck) -> BettingAction {
     if self.wallet > value_to_call {
       BettingAction::Call
     } else {

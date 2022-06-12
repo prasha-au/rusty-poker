@@ -45,7 +45,7 @@ pub struct Game<'a> {
 pub trait Player {
   fn get_wallet(&self) -> u32;
   fn add_to_wallet(&mut self, v: i32);
-  fn request_action(&self, total_pot: u32, value_to_call: u32) -> BettingAction;
+  fn request_action(&self, total_pot: u32, value_to_call: u32, hand: Deck, table: Deck) -> BettingAction;
 }
 
 
@@ -211,6 +211,12 @@ impl Game<'_> {
       .map(|(i, _)| i).collect::<Vec<usize>>();
     let num_winners = winning_indexes.iter().count();
 
+    println!("Table {}", self.table);
+    for (idx, seat) in self.active_seats.iter().enumerate() {
+      println!("Player {} has {} for {:?} ({})", seat.player_index, seat.hand, get_hand_for_score(active_scores[idx]), active_scores[idx]);
+    }
+
+
     println!("Pot of ${} will be split between {} winners: {:?}", self.pot, num_winners, winning_indexes);
 
     for idx in winning_indexes {
@@ -232,7 +238,9 @@ impl Iterator for Game<'_> {
 
         let action = self.players[curr_player.player_index].request_action(
           self.pot,
-          self.betting_round.get_current_player_money_to_call()
+          self.betting_round.get_current_player_money_to_call(),
+          self.get_current_seat().unwrap().hand,
+          self.table
         );
         self.action_current_player(action).unwrap();
 

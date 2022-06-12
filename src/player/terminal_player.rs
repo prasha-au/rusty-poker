@@ -1,4 +1,5 @@
 use crate::game::{Player, BettingAction};
+use crate::deck::{Deck};
 use text_io::scan;
 
 pub struct TerminalPlayer {
@@ -15,9 +16,8 @@ impl Player for TerminalPlayer {
     self.wallet = u32::try_from(new_total).unwrap();
   }
 
-  fn request_action(&self, total_pot: u32, value_to_call: u32) -> BettingAction {
-    println!("Requesting amount from user: POT: ${}   CALL: ${}", total_pot, value_to_call);
-    println!("You have ${} left", self.wallet);
+  fn request_action(&self, total_pot: u32, value_to_call: u32, hand: Deck, table: Deck) -> BettingAction {
+    println!("Requesting amount from user: WALLET: ${}    POT: ${}   CALL: ${}   HAND: {}   TABLE: {}", self.wallet, total_pot, value_to_call, hand, table);
     let bet_amount: u32;
     scan!("{}", bet_amount);
 
