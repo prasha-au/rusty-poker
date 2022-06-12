@@ -17,7 +17,7 @@ impl Player for TerminalPlayer {
   }
 
   fn request_action(&self, total_pot: u32, value_to_call: u32, hand: Deck, table: Deck) -> BettingAction {
-    println!("Requesting amount from user: WALLET: ${}    POT: ${}   CALL: ${}   HAND: {}   TABLE: {}", self.wallet, total_pot, value_to_call, hand, table);
+    println!("Your turn:  WALLET: ${}    POT: ${}   CALL: ${}   HAND: {}   TABLE: {}", self.wallet, total_pot, value_to_call, hand, table);
     let bet_amount: u32;
     scan!("{}", bet_amount);
 

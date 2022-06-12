@@ -213,11 +213,10 @@ impl Game<'_> {
 
     println!("Table {}", self.table);
     for (idx, seat) in self.active_seats.iter().enumerate() {
-      println!("Player {} has {} for {:?} ({})", seat.player_index, seat.hand, get_hand_for_score(active_scores[idx]), active_scores[idx]);
+      println!("Player {} has {} for {:?} ({}) [{}]", seat.player_index, seat.hand, get_hand_for_score(active_scores[idx]), active_scores[idx], if winning_indexes.contains(&idx) { 'W' } else { 'L' });
     }
 
-
-    println!("Pot of ${} will be split between {} winners: {:?}", self.pot, num_winners, winning_indexes);
+    println!("Pot of ${} will be split between {} winners.", self.pot, num_winners);
 
     for idx in winning_indexes {
       self.players[self.active_seats[idx].player_index].add_to_wallet(i32::try_from(self.pot / num_winners as u32).unwrap());
@@ -234,8 +233,6 @@ impl Iterator for Game<'_> {
 
     if self.phase != Phase::Init && self.phase != Phase::Showdown {
       if let Some(curr_player) = self.get_current_seat() {
-        println!("Running for player {}", curr_player.player_index);
-
         let action = self.players[curr_player.player_index].request_action(
           self.pot,
           self.betting_round.get_current_player_money_to_call(),
@@ -243,7 +240,6 @@ impl Iterator for Game<'_> {
           self.table
         );
         self.action_current_player(action).unwrap();
-
 
         return Some(self.phase);
       }

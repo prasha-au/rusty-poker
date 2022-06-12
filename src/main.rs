@@ -26,7 +26,6 @@ fn main() {
   while let Some(phase) = game.next() {
     if phase == Phase::Init {
       rounds_played = rounds_played + 1;
-      println!("{}", game);
     }
   }
 
