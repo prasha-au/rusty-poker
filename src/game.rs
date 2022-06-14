@@ -21,7 +21,7 @@ pub enum Phase {
 }
 
 
-pub struct Seat {
+struct Seat {
   player_index: usize,
   hand: Deck,
 }
@@ -40,12 +40,20 @@ pub struct Game<'a> {
   active_seats: Vec<Seat>,
 }
 
+#[derive(Copy, Clone)]
+pub struct GameInfo {
+  pub total_pot: u32,
+  pub value_to_call: u32,
+  pub hand: Deck,
+  pub table: Deck,
+  pub phase: Phase,
+}
 
 
 pub trait Player {
   fn get_wallet(&self) -> u32;
   fn add_to_wallet(&mut self, v: i32);
-  fn request_action(&self, total_pot: u32, value_to_call: u32, hand: Deck, table: Deck) -> BettingAction;
+  fn request_action(&self, info: GameInfo) -> BettingAction;
 }
 
 
@@ -213,7 +221,14 @@ impl Game<'_> {
 
     println!("Table {}", self.table);
     for (idx, seat) in self.active_seats.iter().enumerate() {
-      println!("Player {} has {} for {:?} ({}) [{}]", seat.player_index, seat.hand, get_hand_for_score(active_scores[idx]), active_scores[idx], if winning_indexes.contains(&idx) { 'W' } else { 'L' });
+      println!(
+        "Player {} has {} for {:?} ({}) [{}]",
+        seat.player_index,
+        seat.hand,
+        get_hand_for_score(active_scores[idx]),
+        active_scores[idx],
+        if winning_indexes.contains(&idx) { 'W' } else { 'L' }
+      );
     }
 
     println!("Pot of ${} will be split between {} winners.", self.pot, num_winners);
@@ -233,12 +248,13 @@ impl Iterator for Game<'_> {
 
     if self.phase != Phase::Init && self.phase != Phase::Showdown {
       if let Some(curr_player) = self.get_current_seat() {
-        let action = self.players[curr_player.player_index].request_action(
-          self.pot,
-          self.betting_round.get_current_player_money_to_call(),
-          self.get_current_seat().unwrap().hand,
-          self.table
-        );
+        let action = self.players[curr_player.player_index].request_action(GameInfo {
+          total_pot: self.pot,
+          value_to_call: self.betting_round.get_current_player_money_to_call(),
+          hand: self.get_current_seat().unwrap().hand,
+          table: self.table,
+          phase: self.phase
+        });
         self.action_current_player(action).unwrap();
 
         return Some(self.phase);
@@ -328,9 +344,6 @@ impl std::fmt::Display for Game<'_> {
     write!(f, "")
   }
 }
-
-
-
 
 
 

@@ -1,6 +1,5 @@
-use crate::game::{Player, BettingAction};
-use crate::deck::{Deck};
-use text_io::scan;
+use crate::game::{Player, BettingAction, GameInfo};
+use text_io::try_read;
 
 pub struct TerminalPlayer {
   pub wallet: u32,
@@ -16,25 +15,39 @@ impl Player for TerminalPlayer {
     self.wallet = u32::try_from(new_total).unwrap();
   }
 
-  fn request_action(&self, total_pot: u32, value_to_call: u32, hand: Deck, table: Deck) -> BettingAction {
-    println!("Your turn:  WALLET: ${}    POT: ${}   CALL: ${}   HAND: {}   TABLE: {}", self.wallet, total_pot, value_to_call, hand, table);
-    let bet_amount: u32;
-    scan!("{}", bet_amount);
+  fn request_action(&self, info: GameInfo) -> BettingAction {
+    println!(
+      "Your turn:  WALLET: ${}    POT: ${}   CALL: ${}   HAND: {}   TABLE: {}",
+      self.wallet,
+      info.total_pot,
+      info.value_to_call,
+      info.hand,
+      info.table
+    );
 
-    println!("we got a bet amount of ${}", bet_amount);
+    loop {
+      let bet_input: Result<u32, _> = try_read!("{}");
+      if bet_input.is_err() {
+        continue;
+      }
 
+      let bet_amount: u32 = bet_input.unwrap();
+      if bet_amount < self.wallet && bet_amount < info.value_to_call {
+        continue;
+      } else if bet_amount > self.wallet {
+        continue;
+      }
 
-    if bet_amount == self.wallet {
-      BettingAction::AllIn(bet_amount)
-    } else if bet_amount > value_to_call {
-      BettingAction::Raise(bet_amount)
-    } else if bet_amount == 0 && value_to_call > 0 {
-      BettingAction::Fold
-    } else {
-      BettingAction::Call
+      println!("we got a bet amount of ${}", bet_amount);
+      if bet_amount == self.wallet {
+        break BettingAction::AllIn(bet_amount);
+      } else if bet_amount > info.value_to_call {
+        break BettingAction::Raise(bet_amount);
+      } else if bet_amount == 0 && info.value_to_call > 0 {
+        break BettingAction::Fold;
+      } else {
+        break BettingAction::Call;
+      }
     }
-
   }
 }
-
-
