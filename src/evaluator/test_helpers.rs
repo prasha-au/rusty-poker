@@ -65,24 +65,24 @@ macro_rules! evaluator_correctness_tests {
 
     #[test]
     fn evaluator_uses_high_card_in_four_of_a_kind() {
-      macro_rules! common_cards {
-        ($kicker:expr) => {
-          [
-            u8::from(Card::new(Suit::Diamond, Rank::Four)),
-            u8::from(Card::new(Suit::Heart, Rank::Four)),
-            u8::from(Card::new(Suit::Club, Rank::Four)),
-            u8::from(Card::new(Suit::Spade, Rank::Four)),
+      let winner = [
+        u8::from(Card::new(Suit::Diamond, Rank::Four)),
+        u8::from(Card::new(Suit::Heart, Rank::Four)),
+        u8::from(Card::new(Suit::Club, Rank::Four)),
+        u8::from(Card::new(Suit::Spade, Rank::Four)),
 
-            u8::from(Card::new(Suit::Spade, Rank::Nine)),
-            u8::from(Card::new(Suit::Club, Rank::Five)),
+        u8::from(Card::new(Suit::Club, Rank::Queen)),
+        u8::from(Card::new(Suit::Spade, Rank::Nine)),
+        u8::from(Card::new(Suit::Club, Rank::Five)),
+      ];
 
-            $kicker
-          ]
-        };
-      }
-      let cards_1 = common_cards!(u8::from(Card::new(Suit::Diamond, Rank::Queen)));
-      let cards_2 = common_cards!(u8::from(Card::new(Suit::Diamond, Rank::Jack)));
-      assert_eq!(true, $scorefn(cards_1) > $scorefn(cards_2));
+      let mut loser = winner;
+      loser[4] = u8::from(Card::new(Suit::Club, Rank::Jack));
+      assert_eq!(true, $scorefn(winner) > $scorefn(loser));
+
+      let mut equal_winner = winner;
+      equal_winner[6] = u8::from(Card::new(Suit::Club, Rank::Two));
+      assert_eq!($scorefn(winner), $scorefn(equal_winner));
     }
 
     #[test]
@@ -162,37 +162,22 @@ macro_rules! evaluator_correctness_tests {
 
     #[test]
     fn evaluator_uses_high_cards_in_three_of_a_kind() {
-      macro_rules! common_cards {
-        ($kicker1:expr, $kicker2: expr) => {
-          [
-            u8::from(Card::new(Suit::Diamond, Rank::Four)),
-            u8::from(Card::new(Suit::Heart, Rank::Four)),
-            u8::from(Card::new(Suit::Club, Rank::Four)),
+      let winner = [
+        u8::from(Card::new(Suit::Diamond, Rank::Four)),
+        u8::from(Card::new(Suit::Heart, Rank::Four)),
+        u8::from(Card::new(Suit::Club, Rank::Four)),
 
-            u8::from(Card::new(Suit::Spade, Rank::Three)),
-            u8::from(Card::new(Suit::Spade, Rank::Two)),
-            $kicker1,
-            $kicker2
-          ]
-        };
-      }
-
-      let winner = common_cards!(
-        u8::from(Card::new(Suit::Diamond, Rank::Queen)),
-        u8::from(Card::new(Suit::Diamond, Rank::Eight))
-      );
-
-      let loser_1 = common_cards!(
+        u8::from(Card::new(Suit::Spade, Rank::Queen)),
         u8::from(Card::new(Suit::Diamond, Rank::Jack)),
-        u8::from(Card::new(Suit::Heart, Rank::Six))
-      );
-      assert_eq!(true, $scorefn(winner) > $scorefn(loser_1));
+        u8::from(Card::new(Suit::Heart, Rank::Nine)),
+        u8::from(Card::new(Suit::Club, Rank::Eight)),
+      ];
 
-      let loser_2 = common_cards!(
-        u8::from(Card::new(Suit::Heart, Rank::Queen)),
-        u8::from(Card::new(Suit::Diamond, Rank::Seven))
-      );
-      assert_eq!(true, $scorefn(winner) > $scorefn(loser_2));
+      for i in 3..5 {
+        let mut loser = winner;
+        loser[i] = u8::from(Card::new(Suit::Club, Rank::Two));
+        assert_eq!(true, $scorefn(winner) > $scorefn(loser));
+      }
     }
 
     #[test]
@@ -212,24 +197,24 @@ macro_rules! evaluator_correctness_tests {
 
     #[test]
     fn evaluator_uses_high_card_in_two_pairs() {
-      macro_rules! common_cards {
-        ($kicker:expr) => {
-          [
-            u8::from(Card::new(Suit::Diamond, Rank::Queen)),
-            u8::from(Card::new(Suit::Club, Rank::Queen)),
-            u8::from(Card::new(Suit::Heart, Rank::Jack)),
-            u8::from(Card::new(Suit::Spade, Rank::Jack)),
+      let winner = [
+        u8::from(Card::new(Suit::Diamond, Rank::Queen)),
+        u8::from(Card::new(Suit::Club, Rank::Queen)),
+        u8::from(Card::new(Suit::Heart, Rank::Jack)),
+        u8::from(Card::new(Suit::Spade, Rank::Jack)),
 
-            u8::from(Card::new(Suit::Club, Rank::Two)),
-            u8::from(Card::new(Suit::Diamond, Rank::Five)),
+        u8::from(Card::new(Suit::Club, Rank::Nine)),
+        u8::from(Card::new(Suit::Diamond, Rank::Eight)),
+        u8::from(Card::new(Suit::Heart, Rank::Seven))
+      ];
 
-            $kicker
-          ]
-        };
-      }
-      let cards_1 = common_cards!(u8::from(Card::new(Suit::Diamond, Rank::Ten)));
-      let cards_2 = common_cards!(u8::from(Card::new(Suit::Diamond, Rank::Eight)));
-      assert_eq!(true, $scorefn(cards_1) > $scorefn(cards_2));
+      let mut loser = winner;
+      loser[4] = u8::from(Card::new(Suit::Club, Rank::Two));
+      assert_eq!(true, $scorefn(winner) > $scorefn(loser));
+
+      let mut equal_winner = winner;
+      equal_winner[5] = u8::from(Card::new(Suit::Club, Rank::Two));
+      assert_eq!($scorefn(winner), $scorefn(equal_winner));
     }
 
     #[test]
@@ -266,6 +251,44 @@ macro_rules! evaluator_correctness_tests {
         assert_eq!(true, $scorefn(winner) > $scorefn(loser));
       }
     }
+
+    #[test]
+    fn evaluator_identifies_high_card() {
+      let cards = [
+        u8::from(Card::new(Suit::Diamond, Rank::King)),
+        u8::from(Card::new(Suit::Club, Rank::Queen)),
+        u8::from(Card::new(Suit::Spade, Rank::Jack)),
+        u8::from(Card::new(Suit::Heart, Rank::Nine)),
+        u8::from(Card::new(Suit::Club, Rank::Seven)),
+        u8::from(Card::new(Suit::Diamond, Rank::Six)),
+        u8::from(Card::new(Suit::Spade, Rank::Five)),
+      ];
+      assert_eq!(Hand::HighCard, $handfn($scorefn(cards)));
+    }
+
+
+    #[test]
+
+    fn evaluator_uses_kickers_on_high_card() {
+      let winner = [
+        u8::from(Card::new(Suit::Diamond, Rank::King)),
+        u8::from(Card::new(Suit::Club, Rank::Queen)),
+        u8::from(Card::new(Suit::Spade, Rank::Jack)),
+        u8::from(Card::new(Suit::Heart, Rank::Nine)),
+        u8::from(Card::new(Suit::Club, Rank::Eight)),
+        u8::from(Card::new(Suit::Diamond, Rank::Five)),
+        u8::from(Card::new(Suit::Spade, Rank::Four)),
+      ];
+      for i in 0..5 {
+        let mut loser = winner;
+        loser[i]= u8::from(Card::new(Suit::Diamond, Rank::Two));
+        assert_eq!(true, $scorefn(winner) > $scorefn(loser));
+      }
+      let mut equal_winner = winner;
+      equal_winner[5] = u8::from(Card::new(Suit::Diamond, Rank::Two));
+      assert_eq!($scorefn(winner), $scorefn(equal_winner));
+    }
+
 
   }
 }
