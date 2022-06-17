@@ -183,7 +183,6 @@ impl Game<'_> {
     self.post_blind(self.blind / 2);
     self.post_blind(self.blind);
     self.betting_round.set_new_start_position(dealer_index + 3);
-    println!("DONE INIT");
   }
 
 
@@ -209,7 +208,7 @@ impl Game<'_> {
   fn finalize(&mut self) {
     let active_scores = self.active_seats.iter().map(|p| {
       get_hand_score(&self.table, &p.hand)
-    }).collect::<Vec<u32>>();
+    }).collect::<Vec<u16>>();
 
 
     let winning_score = active_scores.iter().max().unwrap();

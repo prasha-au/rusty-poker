@@ -1,6 +1,6 @@
 
 #[repr(u8)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Hand {
   Invalid = 0,
   HighCard = 1,

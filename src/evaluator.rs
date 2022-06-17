@@ -3,9 +3,28 @@ use crate::deck::*;
 
 mod types;
 mod two_plus_two;
+mod ck_perfect_hash;
 
 use types::*;
-use two_plus_two::{evaluate_two_plus_two};
+
+
+fn score_to_hand(score: u16) -> Hand {
+  if cfg!(feature = "eval_two_plus_two") {
+    two_plus_two::score_to_hand(score)
+  } else {
+    ck_perfect_hash::score_to_hand(score)
+  }
+}
+
+
+fn evaluate_score(cards: [u8; 7]) -> u16 {
+  if cfg!(feature = "eval_two_plus_two") {
+    two_plus_two::evaluate_score(cards)
+  } else {
+    ck_perfect_hash::evaluate_score(cards)
+  }
+}
+
 
 fn cards_to_fixed_array(cards: &Vec<Card>) -> [u8; 7] {
   let mut numeric_vec: Vec<u8> = cards.iter().map(|c| u8::from(*c)).collect();
@@ -28,7 +47,7 @@ fn iterate_end_game(
   let fixed_arr = cards_to_fixed_array(&table_values.get_cards());
 
   let player_hand = cards_to_fixed_array(&used_cards.get_cards());
-  let player_score = evaluate_two_plus_two(player_hand);
+  let player_score = evaluate_score(player_hand);
 
   for c1 in &available_cards {
     for c2 in &available_cards {
@@ -38,7 +57,7 @@ fn iterate_end_game(
       let mut opponent_hand = fixed_arr;
       opponent_hand[5] = u8::from(*c1);
       opponent_hand[6] = u8::from(*c2);
-      let opponent_score = evaluate_two_plus_two(opponent_hand);
+      let opponent_score = evaluate_score(opponent_hand);
       *games = *games + 1;
       if player_score >= opponent_score {
         *wins = *wins + 1;
@@ -88,19 +107,18 @@ pub fn chance_to_win(table: &Deck, player: &Deck) -> f32 {
 }
 
 
-pub fn get_hand_score(table: &Deck, player: &Deck) -> u32 {
+pub fn get_hand_score(table: &Deck, player: &Deck) -> u16 {
   let combined = *table + *player;
   let fixedarr = cards_to_fixed_array(&combined.get_cards());
-  evaluate_two_plus_two(fixedarr)
+  evaluate_score(fixedarr)
 }
 
-pub fn get_hand_for_score(value: u32) -> Hand {
-  let hand_value = (value >> 12 & 0xF) as u8;
-  Hand::from(hand_value)
+pub fn get_hand_for_score(score: u16) -> Hand {
+  score_to_hand(score)
 }
 
 
 
 #[cfg(test)]
+mod test_helpers;
 mod tests;
-
