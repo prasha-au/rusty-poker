@@ -120,7 +120,6 @@ pub fn get_hand_for_score(score: u16) -> Hand {
 }
 
 
-// TODO: Test this
 pub fn chance_to_win_preflop(hand: &Deck, num_players: u8) -> f32 {
   let cards_in_hand = hand.get_cards();
   let rank1 = cards_in_hand[0].rank;
