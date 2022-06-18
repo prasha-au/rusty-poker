@@ -56,19 +56,16 @@ impl BettingRound {
   }
 
 
-  // TODO: Refactor this into a find circular function
   fn get_prev_active_index(&self, start_index: u8) -> u8 {
-    let plens = self.player_bets.len() as u8;
+    let total_players = self.player_bets.len() as u8;
     let mut prev_index = start_index;
     loop {
-      prev_index = (plens + prev_index - 1) % plens;
+      prev_index = (total_players + prev_index - 1) % total_players;
       if self.player_bets[prev_index as usize].is_active() {
         return prev_index;
       }
     }
   }
-
-
 
   pub fn set_new_start_position(&mut self, start_index: u8) {
     let active_indexes = self.get_active_player_indexes();
@@ -82,7 +79,6 @@ impl BettingRound {
     self.current_player_index = next_index;
     self.final_player_index = self.get_prev_active_index(next_index);
   }
-
 
   pub fn action_current_player(&mut self, action: BettingAction) -> Result<u32, &'static str> {
     if self.is_complete {
@@ -160,27 +156,20 @@ impl BettingRound {
       .map(|(i, _)| i as u8).collect()
   }
 
-  // TODO: Test this
   pub fn get_num_active_players(&self) -> u8 {
-    self.player_bets.iter().filter(|p| p.is_active()).count() as u8
+    self.get_active_player_indexes().len() as u8
   }
 
-  // TODO: Test this
   pub fn get_current_player_money_to_call(&self) -> u32 {
     let player = &self.player_bets[self.current_player_index as usize];
     self.current_bet - player.money_on_table
   }
 
-  // TODO: Test this
   pub fn get_num_players_to_act(&self) -> u8 {
     u8::try_from((self.final_player_index as i8 - self.current_player_index as i8).abs()).unwrap()
   }
-
 }
-
-
 
 
 #[cfg(test)]
 mod tests;
-

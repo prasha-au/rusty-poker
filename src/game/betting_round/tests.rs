@@ -185,7 +185,7 @@ fn setting_new_start_position_resolves_given_value_circularly() {
 
 
 #[test]
-fn getting_num_active_player_returns_proper_values() {
+fn get_num_active_players_returns_proper_values() {
   let mut br = BettingRound::create_for_players(4);
   br.action_current_player(BettingAction::Raise(200)).unwrap();
   br.action_current_player(BettingAction::AllIn(200)).unwrap();
@@ -194,3 +194,26 @@ fn getting_num_active_player_returns_proper_values() {
   assert_eq!(2, br.get_num_active_players());
 }
 
+
+#[test]
+fn get_current_player_money_to_call_returns_proper_value() {
+  let mut br = BettingRound::create_for_players(2);
+  br.action_current_player(BettingAction::Raise(200)).unwrap();
+  br.action_current_player(BettingAction::Raise(400)).unwrap();
+  assert_eq!(200, br.get_current_player_money_to_call());
+}
+
+
+#[test]
+fn get_num_players_to_act_returns_proper_values() {
+  let mut br = BettingRound::create_for_players(3);
+  br.action_current_player(BettingAction::Raise(200)).unwrap();
+  assert_eq!(1, br.get_num_players_to_act());
+  br.action_current_player(BettingAction::Call).unwrap();
+  assert_eq!(0, br.get_num_players_to_act());
+  br.action_current_player(BettingAction::Raise(200)).unwrap();
+  assert_eq!(1, br.get_num_players_to_act());
+  br.action_current_player(BettingAction::Call).unwrap();
+  br.action_current_player(BettingAction::Call).unwrap();
+  assert_eq!(0, br.get_num_players_to_act());
+}
