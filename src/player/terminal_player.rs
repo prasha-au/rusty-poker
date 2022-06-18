@@ -1,4 +1,5 @@
-use crate::game::{Player, BettingAction, GameInfo};
+use crate::game::{Phase, Player, BettingAction, GameInfo};
+use crate::evaluator::{chance_to_win, chance_to_win_preflop};
 use text_io::try_read;
 
 pub struct TerminalPlayer {
@@ -16,13 +17,15 @@ impl Player for TerminalPlayer {
   }
 
   fn request_action(&self, info: GameInfo) -> BettingAction {
+
     println!(
-      "Your turn:  WALLET: ${}    POT: ${}   CALL: ${}   HAND: {}   TABLE: {}",
+      "Your turn:  WALLET: ${}    POT: ${}   CALL: ${}   HAND: {}   TABLE: {}   EST: {:.2}%",
       self.wallet,
       info.total_pot,
       info.value_to_call,
       info.hand,
-      info.table
+      info.table,
+      if info.phase > Phase::PreFlop { chance_to_win(&info.table, &info.hand) * 100.00 } else { chance_to_win_preflop(&info.hand, info.num_players) }
     );
 
     loop {

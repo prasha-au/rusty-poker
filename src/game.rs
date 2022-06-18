@@ -10,14 +10,14 @@ use betting_round::*;
 pub use betting_round::BettingAction;
 
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
 pub enum Phase {
-  Init,
-  PreFlop,
-  Flop,
-  Turn,
-  River,
-  Showdown
+  Init = 0,
+  PreFlop = 1,
+  Flop = 2,
+  Turn = 3,
+  River = 4,
+  Showdown = 5
 }
 
 
@@ -47,6 +47,8 @@ pub struct GameInfo {
   pub hand: Deck,
   pub table: Deck,
   pub phase: Phase,
+  pub num_players: u8,
+  pub players_to_act: u8,
 }
 
 
@@ -252,7 +254,9 @@ impl Iterator for Game<'_> {
           value_to_call: self.betting_round.get_current_player_money_to_call(),
           hand: self.get_current_seat().unwrap().hand,
           table: self.table,
-          phase: self.phase
+          phase: self.phase,
+          num_players: self.betting_round.get_num_active_players(),
+          players_to_act: self.betting_round.get_num_players_to_act()
         });
         self.action_current_player(action).unwrap();
 

@@ -1,6 +1,5 @@
 use super::*;
 
-
 #[test]
 fn create_a_fixed_array_from_card_vec() {
   let arr = cards_to_fixed_array(&vec!(

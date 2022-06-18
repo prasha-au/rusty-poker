@@ -160,14 +160,20 @@ impl BettingRound {
       .map(|(i, _)| i as u8).collect()
   }
 
-  fn get_num_active_players(&self) -> u8 {
+  // TODO: Test this
+  pub fn get_num_active_players(&self) -> u8 {
     self.player_bets.iter().filter(|p| p.is_active()).count() as u8
   }
 
-
+  // TODO: Test this
   pub fn get_current_player_money_to_call(&self) -> u32 {
     let player = &self.player_bets[self.current_player_index as usize];
     self.current_bet - player.money_on_table
+  }
+
+  // TODO: Test this
+  pub fn get_num_players_to_act(&self) -> u8 {
+    u8::try_from((self.final_player_index as i8 - self.current_player_index as i8).abs()).unwrap()
   }
 
 }

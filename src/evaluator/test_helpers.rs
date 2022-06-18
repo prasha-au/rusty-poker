@@ -268,7 +268,6 @@ macro_rules! evaluator_correctness_tests {
 
 
     #[test]
-
     fn evaluator_uses_kickers_on_high_card() {
       let winner = [
         u8::from(Card::new(Suit::Diamond, Rank::King)),
@@ -289,8 +288,8 @@ macro_rules! evaluator_correctness_tests {
       assert_eq!($scorefn(winner), $scorefn(equal_winner));
     }
 
-
   }
 }
+
 pub(crate) use evaluator_correctness_tests;
 
