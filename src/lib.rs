@@ -6,4 +6,4 @@ mod game;
 mod player;
 
 pub use game::{Game, Phase, BettingAction, Player};
-pub use player::{CallingPlayer, TerminalPlayer};
+pub use player::{CallingPlayer, TerminalPlayer, BasicPlayer};

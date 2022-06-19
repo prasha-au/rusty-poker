@@ -14,7 +14,7 @@ struct PlayerBet {
 }
 
 impl PlayerBet {
-  pub fn is_active(&self) -> bool {
+  pub fn is_able_to_bet(&self) -> bool {
     !self.is_folded && !self.is_all_in
   }
 }
@@ -61,7 +61,7 @@ impl BettingRound {
     let mut prev_index = start_index;
     loop {
       prev_index = (total_players + prev_index - 1) % total_players;
-      if self.player_bets[prev_index as usize].is_active() {
+      if self.player_bets[prev_index as usize].is_able_to_bet() {
         return prev_index;
       }
     }
@@ -116,21 +116,20 @@ impl BettingRound {
       }
     };
 
-    if self.current_player_index == self.final_player_index || self.get_num_active_players() == 1 {
+    if self.current_player_index == self.final_player_index {
       self.is_complete = true;
       return Ok(value_to_subtract);
     }
 
     let new_final_player = &self.player_bets[self.final_player_index as usize];
-    if !new_final_player.is_active() {
+    if !new_final_player.is_able_to_bet() {
       panic!("We are setting an invalid item as final player");
     }
-
 
     loop {
       self.current_player_index = (self.current_player_index + 1) % self.player_bets.len() as u8;
       let next_player = &self.player_bets[self.current_player_index as usize];
-      if !next_player.is_active() {
+      if !next_player.is_able_to_bet() {
         continue;
       }
       break;
@@ -152,7 +151,7 @@ impl BettingRound {
 
   fn get_active_player_indexes(&self) -> Vec<u8> {
     self.player_bets.iter().enumerate()
-      .filter(|(_, p)| p.is_active())
+      .filter(|(_, p)| p.is_able_to_bet())
       .map(|(i, _)| i as u8).collect()
   }
 
@@ -166,8 +165,20 @@ impl BettingRound {
   }
 
   pub fn get_num_players_to_act(&self) -> u8 {
-    u8::try_from((self.final_player_index as i8 - self.current_player_index as i8).abs()).unwrap()
+    if self.is_complete {
+      0
+    } else {
+      self.final_player_index.abs_diff(self.current_player_index) + 1
+    }
   }
+
+  // TODO: Test this
+  pub fn get_unfolded_player_indexes(&self) -> Vec<u8> {
+    self.player_bets.iter().enumerate()
+    .filter(|(_, p)| !p.is_folded)
+    .map(|(i, _)| i as u8).collect()
+  }
+
 }
 
 

@@ -9,6 +9,9 @@ doctest = false
 [features]
 eval_two_plus_two = []
 
+[profile.dev]
+opt-level = 1
+
 [dependencies]
 strum = "0.24"
 strum_macros = "0.24"

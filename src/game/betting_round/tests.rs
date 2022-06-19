@@ -4,11 +4,11 @@ use super::*;
 #[test]
 fn all_players_check() {
   let mut br = BettingRound::create_for_players(2);
-  assert_eq!(false, br.is_complete());
+  assert_eq!(false, br.is_complete);
   br.action_current_player(BettingAction::Call).unwrap();
-  assert_eq!(false, br.is_complete());
+  assert_eq!(false, br.is_complete);
   br.action_current_player(BettingAction::Call).unwrap();
-  assert_eq!(true, br.is_complete());
+  assert_eq!(true, br.is_complete);
   assert_eq!(0, br.current_bet);
 }
 
@@ -16,9 +16,9 @@ fn all_players_check() {
 fn calling_a_raise() {
   let mut br = BettingRound::create_for_players(2);
   br.action_current_player(BettingAction::Raise(200)).unwrap();
-  assert_eq!(false, br.is_complete());
+  assert_eq!(false, br.is_complete);
   br.action_current_player(BettingAction::Call).unwrap();
-  assert_eq!(true, br.is_complete());
+  assert_eq!(true, br.is_complete);
   assert_eq!(200, br.current_bet);
 }
 
@@ -28,7 +28,7 @@ fn raising_extends_betting() {
   let mut br = BettingRound::create_for_players(2);
   br.action_current_player(BettingAction::Call).unwrap();
   br.action_current_player(BettingAction::Raise(200)).unwrap();
-  assert_eq!(false, br.is_complete());
+  assert_eq!(false, br.is_complete);
 }
 
 
@@ -40,9 +40,9 @@ fn skip_players_who_have_folded() {
   br.action_current_player(BettingAction::Raise(200)).unwrap();
   br.action_current_player(BettingAction::Fold).unwrap();
   br.action_current_player(BettingAction::Call).unwrap();
-  assert_eq!(false, br.is_complete());
+  assert_eq!(false, br.is_complete);
   br.action_current_player(BettingAction::Call).unwrap();
-  assert_eq!(true, br.is_complete());
+  assert_eq!(true, br.is_complete);
 }
 
 
@@ -53,9 +53,9 @@ fn skip_players_who_have_gone_all_in() {
   br.action_current_player(BettingAction::Raise(200)).unwrap();
   br.action_current_player(BettingAction::AllIn(100)).unwrap();
   br.action_current_player(BettingAction::Call).unwrap();
-  assert_eq!(false, br.is_complete());
+  assert_eq!(false, br.is_complete);
   br.action_current_player(BettingAction::Call).unwrap();
-  assert_eq!(true, br.is_complete());
+  assert_eq!(true, br.is_complete);
 }
 
 
@@ -208,12 +208,13 @@ fn get_current_player_money_to_call_returns_proper_value() {
 fn get_num_players_to_act_returns_proper_values() {
   let mut br = BettingRound::create_for_players(3);
   br.action_current_player(BettingAction::Raise(200)).unwrap();
-  assert_eq!(1, br.get_num_players_to_act());
+  assert_eq!(2, br.get_num_players_to_act());
   br.action_current_player(BettingAction::Call).unwrap();
-  assert_eq!(0, br.get_num_players_to_act());
-  br.action_current_player(BettingAction::Raise(200)).unwrap();
   assert_eq!(1, br.get_num_players_to_act());
+  br.action_current_player(BettingAction::Raise(200)).unwrap();
+  assert_eq!(2, br.get_num_players_to_act());
   br.action_current_player(BettingAction::Call).unwrap();
   br.action_current_player(BettingAction::Call).unwrap();
   assert_eq!(0, br.get_num_players_to_act());
 }
+

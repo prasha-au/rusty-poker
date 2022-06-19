@@ -35,13 +35,10 @@ impl Player for TerminalPlayer {
       }
 
       let bet_amount: u32 = bet_input.unwrap();
-      if bet_amount < self.wallet && bet_amount < info.value_to_call {
-        continue;
-      } else if bet_amount > self.wallet {
+      if bet_amount > self.wallet {
         continue;
       }
 
-      println!("we got a bet amount of ${}", bet_amount);
       if bet_amount == self.wallet {
         break BettingAction::AllIn(bet_amount);
       } else if bet_amount > info.value_to_call {
