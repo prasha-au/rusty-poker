@@ -218,3 +218,19 @@ fn get_num_players_to_act_returns_proper_values() {
   assert_eq!(0, br.get_num_players_to_act());
 }
 
+
+#[test]
+fn if_the_last_opposing_player_folds_it_should_complete() {
+  let mut br = BettingRound::create_for_players(2);
+  br.set_new_start_position(1);
+  br.action_current_player(BettingAction::Fold).unwrap();
+  assert_eq!(true, br.is_complete);
+}
+
+#[test]
+fn if_the_last_opposing_player_went_all_in_do_another_round_of_betting() {
+  let mut br = BettingRound::create_for_players(2);
+  br.action_current_player(BettingAction::AllIn(200)).unwrap();
+  assert_eq!(false, br.is_complete);
+}
+

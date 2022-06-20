@@ -91,6 +91,9 @@ impl BettingRound {
     match action {
       BettingAction::Fold => {
         player.is_folded = true;
+        if self.get_num_active_players() < 2 {
+          self.is_complete = true;
+        }
       }
       BettingAction::Call => {
         value_to_subtract = self.current_bet - player.money_on_table;

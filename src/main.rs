@@ -15,7 +15,7 @@ fn main() {
 
 
 
-  let mut players: Vec<Box<&mut dyn Player>> = vec![
+  let players: Vec<Box<&mut dyn Player>> = vec![
     Box::new(&mut calling_players[0]),
     Box::new(&mut terminal_player)
   ];
