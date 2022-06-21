@@ -89,25 +89,6 @@ fn correct_value_for_player_bets() {
 }
 
 
-#[test]
-fn correct_value_for_active_player_indexes() {
-  let mut br = BettingRound::create_for_players(3);
-  br.action_current_player(BettingAction::Call).unwrap();
-  br.action_current_player(BettingAction::Fold).unwrap();
-  br.action_current_player(BettingAction::Call).unwrap();
-  let active_indexes = br.get_active_player_indexes();
-  assert_eq!(vec![0, 2], active_indexes);
-}
-
-#[test]
-fn correct_value_for_active_player_indexes_when_others_fold() {
-  let mut br = BettingRound::create_for_players(3);
-  br.action_current_player(BettingAction::Fold).unwrap();
-  br.action_current_player(BettingAction::Fold).unwrap();
-  let active_indexes = br.get_active_player_indexes();
-  assert_eq!(vec![2], active_indexes);
-}
-
 
 #[test]
 fn restarting_bets_resets_values() {
@@ -137,18 +118,6 @@ fn restarting_bets_keeps_players_all_in() {
   br.restart();
   assert_eq!(true, br.player_bets[1].is_all_in);
 }
-
-
-#[test]
-fn getting_active_player_indexes_returns_proper_values() {
-  let mut br = BettingRound::create_for_players(4);
-  br.action_current_player(BettingAction::Raise(200)).unwrap();
-  br.action_current_player(BettingAction::AllIn(200)).unwrap();
-  br.action_current_player(BettingAction::Fold).unwrap();
-  br.action_current_player(BettingAction::Call).unwrap();
-  assert_eq!(vec![0,3], br.get_active_player_indexes());
-}
-
 
 #[test]
 fn setting_new_start_position_ignores_inactive_players() {
@@ -185,13 +154,13 @@ fn setting_new_start_position_resolves_given_value_circularly() {
 
 
 #[test]
-fn get_num_active_players_returns_proper_values() {
+fn get_num_players_able_to_bets_returns_proper_values() {
   let mut br = BettingRound::create_for_players(4);
   br.action_current_player(BettingAction::Raise(200)).unwrap();
   br.action_current_player(BettingAction::AllIn(200)).unwrap();
   br.action_current_player(BettingAction::Fold).unwrap();
   br.action_current_player(BettingAction::Call).unwrap();
-  assert_eq!(2, br.get_num_active_players());
+  assert_eq!(2, br.get_num_players_able_to_bets());
 }
 
 
@@ -232,5 +201,13 @@ fn if_the_last_opposing_player_went_all_in_do_another_round_of_betting() {
   let mut br = BettingRound::create_for_players(2);
   br.action_current_player(BettingAction::AllIn(200)).unwrap();
   assert_eq!(false, br.is_complete);
+}
+
+#[test]
+fn get_unfolded_player_indexes_returns_proper_value() {
+  let mut br = BettingRound::create_for_players(2);
+  br.action_current_player(BettingAction::AllIn(200)).unwrap();
+  br.action_current_player(BettingAction::Fold).unwrap();
+  assert_eq!(vec![0], br.get_unfolded_player_indexes());
 }
 

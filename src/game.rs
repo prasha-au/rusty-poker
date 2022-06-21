@@ -34,7 +34,7 @@ pub struct Game<'a> {
   available_cards: Deck,
   table: Deck,
   betting_round: BettingRound,
-  dealer_id: u8,
+  dealer_index: u8,
   blind: u32,
   players: Vec<Box<&'a mut dyn Player>>,
   active_seats: Vec<Seat>,
@@ -68,7 +68,7 @@ impl Game<'_> {
       pot: 0,
       available_cards: Deck::full_deck(),
       table: Deck::new(),
-      dealer_id: 0,
+      dealer_index: 0,
       blind: 20,
       players: players,
       active_seats: (0..player_count).map(|player_index| Seat {
@@ -97,6 +97,7 @@ impl Game<'_> {
       Some(&self.active_seats[self.betting_round.get_current_player_index() as usize])
     }
   }
+
 
   fn action_current_player(&mut self, action: BettingAction) -> Result<(), &'static str> {
     let player = self.get_current_seat();
@@ -157,6 +158,9 @@ impl Game<'_> {
       self.active_seats[i].hand = Deck::new()
     }
 
+
+    let old_dealer_player_index = self.active_seats[self.dealer_index as usize].player_index;
+
     while let Some(idx) = self.active_seats.iter().position(|p| self.players[p.player_index].get_wallet() < self.blind) {
       self.active_seats.remove(idx);
     }
@@ -168,30 +172,32 @@ impl Game<'_> {
     }
 
     // TODO: This is terrible... Find a better way to write this
-    let total_players = self.players.len() as u8;
-    loop {
-      self.dealer_id = (self.dealer_id + 1) % total_players;
-      if let Some(_) = self.active_seats.iter().find(|p| p.player_index as u8 == self.dealer_id) {
+    let total_players = self.players.len();
+
+    for i in 1..total_players {
+      let new_dealer_player_index = (old_dealer_player_index + i) % total_players;
+      if let Some(_) = self.active_seats.iter().position(|p| p.player_index == new_dealer_player_index) {
         break;
       }
+
     }
-    println!("New dealer is {}", self.dealer_id);
+    println!("New dealer is {}", self.dealer_index);
 
     self.betting_round = BettingRound::create_for_players(num_players);
 
-    let dealer_index = self.active_seats.iter().position(|p| p.player_index as u8 == self.dealer_id).unwrap() as u8;
-    self.betting_round.set_new_start_position(dealer_index + 1);
+    self.betting_round.set_new_start_position(self.dealer_index + 1);
 
     self.post_blind(self.blind / 2);
     self.post_blind(self.blind);
-    self.betting_round.set_new_start_position(dealer_index + 3);
+    self.betting_round.set_new_start_position(self.dealer_index + 3);
   }
 
 
-  // TODO: order is incorrect on deals
   fn deal_cards_to_players(&mut self) {
+    let num_active_seats = self.active_seats.len();
     for _ in 0..2 {
-      for idx in 0..self.active_seats.len() {
+      for pnum in 0..num_active_seats {
+        let idx = (self.dealer_index as usize + pnum) % num_active_seats;
         let card = self.pick_available_card();
         self.active_seats[idx].hand.add_card(card);
       }
@@ -210,7 +216,6 @@ impl Game<'_> {
   fn finalize(&mut self) {
     let active_indexes = self.betting_round.get_unfolded_player_indexes();
 
-    // TODO: Test this
     let active_scores = self.active_seats.iter().enumerate()
     .map(|(i, p)| {
       if active_indexes.contains(&(i as u8)) {
@@ -263,7 +268,7 @@ impl Iterator for Game<'_> {
           hand: self.get_current_seat().unwrap().hand,
           table: self.table,
           phase: self.phase,
-          num_players: self.betting_round.get_num_active_players(),
+          num_players: self.betting_round.get_num_players_able_to_bets(),
           players_to_act: self.betting_round.get_num_players_to_act()
         });
         self.action_current_player(action).unwrap();
@@ -281,13 +286,12 @@ impl Iterator for Game<'_> {
         self.phase = Phase::PreFlop;
       },
       Phase::PreFlop => {
-        if self.betting_round.get_num_active_players() > 1 {
+        if self.betting_round.get_num_players_able_to_bets() > 1 {
           self.betting_round.restart();
           println!("========= Dealing flop ========");
           self.deal_cards_to_table(3);
 
-          let dealer_index = self.active_seats.iter().position(|p| p.player_index as u8 == self.dealer_id).unwrap() as u8;
-          self.betting_round.set_new_start_position(dealer_index + 1);
+          self.betting_round.set_new_start_position(self.dealer_index + 1);
           self.phase = Phase::Flop;
         } else {
           println!("Going to showdown");
@@ -295,7 +299,7 @@ impl Iterator for Game<'_> {
         }
       }
       Phase::Flop => {
-        if self.betting_round.get_num_active_players() > 1 {
+        if self.betting_round.get_num_players_able_to_bets() > 1 {
           self.betting_round.restart();
           println!("========= Dealing turn ========");
           self.deal_cards_to_table(1);
@@ -305,7 +309,7 @@ impl Iterator for Game<'_> {
         }
       }
       Phase::Turn => {
-        if self.betting_round.get_num_active_players() > 1 {
+        if self.betting_round.get_num_players_able_to_bets() > 1 {
           self.betting_round.restart();
           println!("========= Dealing river ========");
           self.deal_cards_to_table(1);
@@ -349,7 +353,7 @@ impl std::fmt::Display for Game<'_> {
     for (i, p) in self.active_seats.iter().enumerate() {
       writeln!(f, "{} {}{}    {}    ${}     ${}   ",
         p.player_index,
-        if p.player_index as u8 == self.dealer_id { 'D' } else { ' ' },
+        if p.player_index as u8 == self.dealer_index { 'D' } else { ' ' },
         if curr_player.is_some() && curr_player.unwrap().player_index == p.player_index { 'P' } else { ' ' },
         p.hand,
         player_bets[i],

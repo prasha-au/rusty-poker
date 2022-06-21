@@ -87,19 +87,19 @@ fn should_select_the_player_past_blind_to_start_on_preflop() {
   assert_eq!(Phase::Init, game.phase);
   game.next();
   assert_eq!(Phase::PreFlop, game.phase);
-  assert_eq!(1, game.dealer_id);
-  assert_eq!(4, game.get_current_seat().unwrap().player_index);
+  assert_eq!(0, game.dealer_index);
+  assert_eq!(3, game.get_current_seat().unwrap().player_index);
 }
 
 
 #[test]
 fn should_select_the_player_past_blind_to_start_on_preflop_circular() {
-  let mut players = create_players(3);
+  let mut players = create_players(2);
   let mut game = Game::create(to_game_players(&mut players));
   assert_eq!(Phase::Init, game.phase);
   game.next();
   assert_eq!(Phase::PreFlop, game.phase);
-  assert_eq!(1, game.dealer_id);
+  assert_eq!(0, game.dealer_index);
   assert_eq!(1, game.get_current_seat().unwrap().player_index);
 }
 
@@ -109,7 +109,7 @@ fn should_let_big_blind_bet() {
   let mut game = Game::create(to_game_players(&mut players));
   for _ in 0..2 { game.next(); }
   assert_eq!(Some(Phase::PreFlop), game.next());
-  assert_eq!(0, game.get_current_seat().unwrap().player_index);
+  assert_eq!(2, game.get_current_seat().unwrap().player_index);
 }
 
 
@@ -118,9 +118,49 @@ fn should_select_the_small_blind_player_to_start_on_other_phases() {
   let mut players = create_players(5);
   let mut game = Game::create(to_game_players(&mut players));
   assert_eq!(Some(Phase::PreFlop), game.next());
-  assert_eq!(4, game.get_current_seat().unwrap().player_index);
+  assert_eq!(3, game.get_current_seat().unwrap().player_index);
   for _ in 0..5 { game.next(); }
   assert_eq!(Some(Phase::Flop), game.next());
-  assert_eq!(2, game.get_current_seat().unwrap().player_index);
+  assert_eq!(1, game.get_current_seat().unwrap().player_index);
+}
+
+
+
+#[test]
+fn should_only_split_pot_between_players_who_have_not_folded() {
+  let mut players = create_players(2);
+  let mut game = Game::create(to_game_players(&mut players));
+
+  game.phase = Phase::Showdown;
+  game.betting_round.set_new_start_position(0);
+
+  game.pot = 200;
+
+  game.betting_round.action_current_player(BettingAction::Raise(200)).unwrap();
+  game.betting_round.action_current_player(BettingAction::Fold).unwrap();
+
+  game.table = Deck::from_cards(&vec![
+    Card::new(Suit::Heart, Rank::Ace),
+    Card::new(Suit::Heart, Rank::King),
+    Card::new(Suit::Heart, Rank::Queen),
+    Card::new(Suit::Heart, Rank::Jack),
+    Card::new(Suit::Heart, Rank::Ten)
+  ]);
+  game.active_seats[0].hand = Deck::from_cards(&vec![
+    Card::new(Suit::Diamond, Rank::Four),
+    Card::new(Suit::Diamond, Rank::Three),
+  ]);
+  game.active_seats[1].hand = Deck::from_cards(&vec![
+    Card::new(Suit::Diamond, Rank::Ace),
+    Card::new(Suit::Diamond, Rank::King),
+  ]);
+
+
+  game.next();
+  assert_eq!(Some(Phase::PreFlop), game.next());
+
+
+  assert_eq!(380, game.players[0].get_wallet());
+  assert_eq!(190, game.players[1].get_wallet());
 }
 

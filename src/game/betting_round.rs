@@ -68,13 +68,14 @@ impl BettingRound {
   }
 
   pub fn set_new_start_position(&mut self, start_index: u8) {
-    let active_indexes = self.get_active_player_indexes();
-    let mut next_index = start_index % self.player_bets.len() as u8;
+    let total_players = self.player_bets.len() as u8;
+    let mut next_index = start_index % total_players;
     loop {
-      if active_indexes.contains(&next_index) {
+      let player = &self.player_bets[next_index as usize];
+      if player.is_able_to_bet() {
         break;
       }
-      next_index = (next_index + 1) % self.player_bets.len() as u8;
+      next_index = (next_index + 1) % total_players;
     }
     self.current_player_index = next_index;
     self.final_player_index = self.get_prev_active_index(next_index);
@@ -91,7 +92,7 @@ impl BettingRound {
     match action {
       BettingAction::Fold => {
         player.is_folded = true;
-        if self.get_num_active_players() < 2 {
+        if self.get_num_players_able_to_bets() < 2 {
           self.is_complete = true;
         }
       }
@@ -152,14 +153,8 @@ impl BettingRound {
     self.player_bets.iter().map(|p| p.money_on_table).collect()
   }
 
-  fn get_active_player_indexes(&self) -> Vec<u8> {
-    self.player_bets.iter().enumerate()
-      .filter(|(_, p)| p.is_able_to_bet())
-      .map(|(i, _)| i as u8).collect()
-  }
-
-  pub fn get_num_active_players(&self) -> u8 {
-    self.get_active_player_indexes().len() as u8
+  pub fn get_num_players_able_to_bets(&self) -> u8 {
+    self.player_bets.iter().filter(|p| p.is_able_to_bet()).count() as u8
   }
 
   pub fn get_current_player_money_to_call(&self) -> u32 {
@@ -175,7 +170,6 @@ impl BettingRound {
     }
   }
 
-  // TODO: Test this
   pub fn get_unfolded_player_indexes(&self) -> Vec<u8> {
     self.player_bets.iter().enumerate()
     .filter(|(_, p)| !p.is_folded)

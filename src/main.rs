@@ -16,7 +16,7 @@ fn main() {
 
 
   let players: Vec<Box<&mut dyn Player>> = vec![
-    Box::new(&mut calling_players[0]),
+    Box::new(&mut com_player),
     Box::new(&mut terminal_player)
   ];
 
@@ -24,8 +24,9 @@ fn main() {
   let mut game = Game::create(players);
 
 
-  let mut rounds_played = 0;
+  let mut rounds_played = 1;
 
+  println!("==== Round {} ============================================================================================", rounds_played);
   while let Some(phase) = game.next() {
     if phase == Phase::Init {
       rounds_played = rounds_played + 1;
@@ -33,7 +34,7 @@ fn main() {
     }
   }
 
-  println!("Player COM{} ends up with ${}", calling_players[0].id, calling_players[0].wallet);
+  println!("Player COM{} ends up with ${}", com_player.id, com_player.wallet);
 
   // for p in calling_players.iter() {
   //   println!("Player COM{} ends up with ${}", p.id, p.wallet);
