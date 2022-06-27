@@ -61,7 +61,7 @@ fn should_reset_state_between_rounds() {
   game.next();
   assert_eq!(Phase::PreFlop, game.phase);
 
-  assert_eq!(30, game.pot);
+  assert_eq!(30, game.betting_round.get_pot());
   assert_eq!(0, game.table.get_cards().len());
   for p in &game.active_seats {
     assert_eq!(2, p.hand.get_cards().len());
@@ -125,17 +125,21 @@ fn should_select_the_small_blind_player_to_start_on_other_phases() {
 }
 
 
+fn create_players_with_empty_wallets(num_players: u8) -> Vec<CallingPlayer> {
+  let mut players = create_players(num_players);
+  for mut p in players.iter_mut() {
+    p.wallet = 0;
+  }
+  players
+}
+
 
 #[test]
 fn should_only_split_pot_between_players_who_have_not_folded() {
-  let mut players = create_players(2);
+  let mut players = create_players_with_empty_wallets(2);
   let mut game = Game::create(to_game_players(&mut players));
 
-  game.phase = Phase::Showdown;
   game.betting_round.set_new_start_position(0);
-
-  game.pot = 200;
-
   game.betting_round.action_current_player(BettingAction::Raise(200)).unwrap();
   game.betting_round.action_current_player(BettingAction::Fold).unwrap();
 
@@ -144,23 +148,18 @@ fn should_only_split_pot_between_players_who_have_not_folded() {
     Card::new(Suit::Heart, Rank::King),
     Card::new(Suit::Heart, Rank::Queen),
     Card::new(Suit::Heart, Rank::Jack),
-    Card::new(Suit::Heart, Rank::Ten)
+    Card::new(Suit::Heart, Rank::Four)
   ]);
   game.active_seats[0].hand = Deck::from_cards(&vec![
     Card::new(Suit::Diamond, Rank::Four),
     Card::new(Suit::Diamond, Rank::Three),
   ]);
   game.active_seats[1].hand = Deck::from_cards(&vec![
-    Card::new(Suit::Diamond, Rank::Ace),
+    Card::new(Suit::Heart, Rank::Ten),
     Card::new(Suit::Diamond, Rank::King),
   ]);
 
-
-  game.next();
-  assert_eq!(Some(Phase::PreFlop), game.next());
-
-
-  assert_eq!(380, game.players[0].get_wallet());
-  assert_eq!(190, game.players[1].get_wallet());
+  game.finalize();
+  assert_eq!(200, game.players[0].get_wallet());
+  assert_eq!(0, game.players[1].get_wallet());
 }
-

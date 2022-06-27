@@ -95,7 +95,7 @@ fn restarting_bets_resets_values() {
   let mut br = BettingRound::create_for_players(2);
   br.action_current_player(BettingAction::Raise(200)).unwrap();
   br.action_current_player(BettingAction::AllIn(100)).unwrap();
-  br.restart();
+  br.reset_for_next_phase();
   assert_eq!(vec![0, 0], br.get_player_bets());
   assert_eq!(0, br.current_bet);
   assert_eq!(false, br.is_complete);
@@ -106,7 +106,7 @@ fn restarting_bets_keeps_players_folded() {
   let mut br = BettingRound::create_for_players(2);
   br.action_current_player(BettingAction::Raise(200)).unwrap();
   br.action_current_player(BettingAction::Fold).unwrap();
-  br.restart();
+  br.reset_for_next_phase();
   assert_eq!(true, br.player_bets[1].is_folded);
 }
 
@@ -115,7 +115,7 @@ fn restarting_bets_keeps_players_all_in() {
   let mut br = BettingRound::create_for_players(2);
   br.action_current_player(BettingAction::Raise(200)).unwrap();
   br.action_current_player(BettingAction::AllIn(200)).unwrap();
-  br.restart();
+  br.reset_for_next_phase();
   assert_eq!(true, br.player_bets[1].is_all_in);
 }
 
@@ -126,7 +126,7 @@ fn setting_new_start_position_ignores_inactive_players() {
   br.action_current_player(BettingAction::Fold).unwrap();
   br.action_current_player(BettingAction::Fold).unwrap();
   br.action_current_player(BettingAction::Call).unwrap();
-  br.restart();
+  br.reset_for_next_phase();
   br.set_new_start_position(1);
   assert_eq!(3, br.get_current_player_index());
 }
@@ -137,7 +137,7 @@ fn setting_new_start_position_picks_first_if_available() {
   let mut br = BettingRound::create_for_players(2);
   br.action_current_player(BettingAction::Raise(200)).unwrap();
   br.action_current_player(BettingAction::Call).unwrap();
-  br.restart();
+  br.reset_for_next_phase();
   br.set_new_start_position(0);
   assert_eq!(0, br.get_current_player_index());
 }
@@ -147,7 +147,7 @@ fn setting_new_start_position_picks_first_if_available() {
 fn setting_new_start_position_resolves_given_value_circularly() {
   let mut br = BettingRound::create_for_players(2);
   assert_eq!(0, br.get_current_player_index());
-  br.restart();
+  br.reset_for_next_phase();
   br.set_new_start_position(5);
   assert_eq!(1, br.get_current_player_index());
 }
@@ -209,5 +209,44 @@ fn get_unfolded_player_indexes_returns_proper_value() {
   br.action_current_player(BettingAction::AllIn(200)).unwrap();
   br.action_current_player(BettingAction::Fold).unwrap();
   assert_eq!(vec![0], br.get_unfolded_player_indexes());
+}
+
+#[test]
+fn get_pot_returns_proper_value() {
+  let mut br = BettingRound::create_for_players(3);
+  br.player_bets[0].money_in_pot = 100;
+  br.player_bets[1].money_in_pot = 500;
+  br.player_bets[2].money_in_pot = 200;
+  assert_eq!(800, br.get_pot());
+}
+
+#[test]
+fn players_retain_money_in_pot_value() {
+  let mut br = BettingRound::create_for_players(2);
+  br.action_current_player(BettingAction::Raise(200)).unwrap();
+  br.action_current_player(BettingAction::Call).unwrap();
+  br.reset_for_next_phase();
+  br.action_current_player(BettingAction::Raise(200)).unwrap();
+  br.action_current_player(BettingAction::Call).unwrap();
+  assert_eq!(400, br.player_bets[0].money_in_pot);
+  assert_eq!(400, br.player_bets[1].money_in_pot);
+}
+
+#[test]
+fn should_split_pot_properly_with_all_in_player() {
+  let mut br = BettingRound::create_for_players(3);
+  br.action_current_player(BettingAction::Raise(400)).unwrap();
+  br.action_current_player(BettingAction::AllIn(200)).unwrap();
+  br.action_current_player(BettingAction::Call).unwrap();
+  assert_eq!(vec![700, 300, 0], br.get_pot_split(vec![0, 1]));
+}
+
+#[test]
+fn should_split_pot_evenly_between_winners() {
+  let mut br = BettingRound::create_for_players(3);
+  br.action_current_player(BettingAction::Raise(400)).unwrap();
+  br.action_current_player(BettingAction::Call).unwrap();
+  br.action_current_player(BettingAction::Call).unwrap();
+  assert_eq!(vec![400, 400, 400], br.get_pot_split(vec![0, 1, 2]));
 }
 

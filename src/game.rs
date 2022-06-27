@@ -30,7 +30,6 @@ struct Seat {
 
 pub struct Game<'a> {
   phase: Phase,
-  pot: u32,
   available_cards: Deck,
   table: Deck,
   betting_round: BettingRound,
@@ -65,7 +64,6 @@ impl Game<'_> {
     let player_count = players.len();
     Game {
       phase: Phase::Init,
-      pot: 0,
       available_cards: Deck::full_deck(),
       table: Deck::new(),
       dealer_index: 0,
@@ -132,8 +130,6 @@ impl Game<'_> {
     }
 
     let new_money = self.betting_round.action_current_player(action).unwrap();
-    self.pot += new_money;
-
     player.add_to_wallet(-i32::try_from(new_money).unwrap());
     Ok(())
   }
@@ -149,15 +145,12 @@ impl Game<'_> {
   }
 
 
-
   fn init_round(&mut self) {
-    self.pot = 0;
     self.available_cards = Deck::full_deck();
     self.table = Deck::new();
     for i in 0..self.active_seats.len() {
       self.active_seats[i].hand = Deck::new()
     }
-
 
     let old_dealer_player_index = self.active_seats[self.dealer_index as usize].player_index;
 
@@ -171,20 +164,15 @@ impl Game<'_> {
       panic!("We do not have enough players.");
     }
 
-    // TODO: This is terrible... Find a better way to write this
     let total_players = self.players.len();
-
     for i in 1..total_players {
       let new_dealer_player_index = (old_dealer_player_index + i) % total_players;
       if let Some(_) = self.active_seats.iter().position(|p| p.player_index == new_dealer_player_index) {
         break;
       }
-
     }
-    println!("New dealer is {}", self.dealer_index);
 
     self.betting_round = BettingRound::create_for_players(num_players);
-
     self.betting_round.set_new_start_position(self.dealer_index + 1);
 
     self.post_blind(self.blind / 2);
@@ -212,7 +200,6 @@ impl Game<'_> {
   }
 
 
-  // TODO: Winners here may not all have an equal share of the pot
   fn finalize(&mut self) {
     let active_indexes = self.betting_round.get_unfolded_player_indexes();
 
@@ -227,13 +214,11 @@ impl Game<'_> {
 
 
     let winning_score = active_scores.iter().max().unwrap();
-
     let winning_indexes = self.active_seats.iter().enumerate()
       .filter(|(i, _)| active_scores[*i] == *winning_score)
       .map(|(i, _)| i).collect::<Vec<usize>>();
-    let num_winners = winning_indexes.iter().count();
 
-    println!("Table {}", self.table);
+    println!("Table {} Pot ${}", self.table, self.betting_round.get_pot());
     for (idx, seat) in self.active_seats.iter().enumerate() {
       println!(
         "Player {} has {} for {:?} ({}) [{}]",
@@ -245,10 +230,11 @@ impl Game<'_> {
       );
     }
 
-    println!("Pot of ${} will be split between {} winners.", self.pot, num_winners);
 
-    for idx in winning_indexes {
-      self.players[self.active_seats[idx].player_index].add_to_wallet(i32::try_from(self.pot / num_winners as u32).unwrap());
+    let pot_splits = self.betting_round.get_pot_split(winning_indexes);
+    for (idx, &split) in pot_splits.iter().enumerate() {
+      println!("Player at index {} wins ${}", idx, split);
+      self.players[self.active_seats[idx].player_index].add_to_wallet(i32::try_from(split).unwrap());
     }
   }
 }
@@ -263,7 +249,7 @@ impl Iterator for Game<'_> {
     if self.phase != Phase::Init && self.phase != Phase::Showdown {
       if let Some(curr_player) = self.get_current_seat() {
         let action = self.players[curr_player.player_index].request_action(GameInfo {
-          total_pot: self.pot,
+          total_pot: self.betting_round.get_pot(),
           value_to_call: self.betting_round.get_current_player_money_to_call(),
           hand: self.get_current_seat().unwrap().hand,
           table: self.table,
@@ -274,7 +260,6 @@ impl Iterator for Game<'_> {
         self.action_current_player(action).unwrap();
         return Some(self.phase);
       }
-
     }
 
     match self.phase {
@@ -287,7 +272,7 @@ impl Iterator for Game<'_> {
       },
       Phase::PreFlop => {
         if self.betting_round.get_num_players_able_to_bets() > 1 {
-          self.betting_round.restart();
+          self.betting_round.reset_for_next_phase();
           println!("========= Dealing flop ========");
           self.deal_cards_to_table(3);
 
@@ -300,7 +285,7 @@ impl Iterator for Game<'_> {
       }
       Phase::Flop => {
         if self.betting_round.get_num_players_able_to_bets() > 1 {
-          self.betting_round.restart();
+          self.betting_round.reset_for_next_phase();
           println!("========= Dealing turn ========");
           self.deal_cards_to_table(1);
           self.phase = Phase::Turn;
@@ -310,7 +295,7 @@ impl Iterator for Game<'_> {
       }
       Phase::Turn => {
         if self.betting_round.get_num_players_able_to_bets() > 1 {
-          self.betting_round.restart();
+          self.betting_round.reset_for_next_phase();
           println!("========= Dealing river ========");
           self.deal_cards_to_table(1);
           self.phase = Phase::River;
@@ -345,8 +330,7 @@ impl Iterator for Game<'_> {
 
 impl std::fmt::Display for Game<'_> {
   fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
-
-    writeln!(f, "Pot: ${}   Table: {} ", self.pot, self.table)?;
+    writeln!(f, "Pot: ${}   Table: {} ", self.betting_round.get_pot(), self.table)?;
     writeln!(f, "Plyr      Cards      Bid     Wallet")?;
     let player_bets = self.betting_round.get_player_bets();
     let curr_player = self.get_current_seat();
@@ -363,7 +347,6 @@ impl std::fmt::Display for Game<'_> {
     write!(f, "")
   }
 }
-
 
 
 

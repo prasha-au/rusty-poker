@@ -8,6 +8,7 @@ pub enum BettingAction {
 }
 
 struct PlayerBet {
+  money_in_pot: u32,
   money_on_table: u32,
   is_folded: bool,
   is_all_in: bool,
@@ -36,6 +37,7 @@ impl BettingRound {
     BettingRound {
       current_bet: 0,
       player_bets: (0..players).map(|_| PlayerBet {
+        money_in_pot: 0,
         money_on_table: 0,
         is_folded: false,
         is_all_in: false,
@@ -46,7 +48,7 @@ impl BettingRound {
     }
   }
 
-  pub fn restart(&mut self) {
+  pub fn reset_for_next_phase(&mut self) {
     self.current_bet = 0;
     self.is_complete = false;
     for p in &mut self.player_bets {
@@ -99,6 +101,7 @@ impl BettingRound {
       BettingAction::Call => {
         value_to_subtract = self.current_bet - player.money_on_table;
         player.money_on_table = self.current_bet;
+        player.money_in_pot += value_to_subtract;
       }
       BettingAction::Raise(bet) => {
         if (player.money_on_table + bet) < self.current_bet {
@@ -106,12 +109,14 @@ impl BettingRound {
         }
         value_to_subtract = bet;
         player.money_on_table += bet;
+        player.money_in_pot += value_to_subtract;
         self.current_bet = player.money_on_table;
         self.final_player_index = previous_player_index;
       }
       BettingAction::AllIn(remaining_amount) => {
         value_to_subtract = remaining_amount;
         player.money_on_table += remaining_amount;
+        player.money_in_pot += value_to_subtract;
         player.is_all_in = true;
         if player.money_on_table > self.current_bet {
           self.current_bet = player.money_on_table;
@@ -174,6 +179,39 @@ impl BettingRound {
     self.player_bets.iter().enumerate()
     .filter(|(_, p)| !p.is_folded)
     .map(|(i, _)| i as u8).collect()
+  }
+
+  pub fn get_pot(&self) -> u32 {
+    self.player_bets.iter().map(|p| p.money_in_pot).sum()
+  }
+
+  fn get_player_money_in_pot(&self) -> Vec<u32> {
+    self.player_bets.iter().map(|p| p.money_in_pot).collect()
+  }
+
+
+  pub fn get_pot_split(&self, winning_indexes: Vec<usize>) -> Vec<u32> {
+    let mut pot_split = vec![0; self.player_bets.len()];
+
+    let player_money_in_pot = self.get_player_money_in_pot();
+    let mut split_amounts = player_money_in_pot.to_vec();
+    split_amounts.retain(|&v| v > 0);
+    split_amounts.sort();
+    split_amounts.dedup();
+
+    let mut prev_split_value = 0;
+    for split in split_amounts {
+      let pot_size = player_money_in_pot.iter().filter(|pb| **pb >= split).collect::<Vec<_>>().len() as u32 * (split - prev_split_value);
+
+      let indexes_eligible_for_split = winning_indexes.iter().filter(|&idx| player_money_in_pot[*idx] >= split).collect::<Vec<_>>();
+      let num_splits = indexes_eligible_for_split.len() as u32;
+      for &idx in indexes_eligible_for_split {
+        pot_split[idx] += pot_size / num_splits;
+      }
+      prev_split_value = split;
+    }
+
+    pot_split
   }
 
 }
