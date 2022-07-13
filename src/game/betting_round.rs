@@ -162,9 +162,8 @@ impl BettingRound {
     self.player_bets.iter().filter(|p| p.is_able_to_bet()).count() as u8
   }
 
-  pub fn get_current_player_money_to_call(&self) -> u32 {
-    let player = &self.player_bets[self.current_player_index as usize];
-    self.current_bet - player.money_on_table
+  pub fn get_player_money_to_call(&self, player_index: u8) -> u32 {
+    self.current_bet - self.player_bets[player_index as usize].money_on_table
   }
 
   pub fn get_num_players_to_act(&self) -> u8 {
@@ -185,15 +184,10 @@ impl BettingRound {
     self.player_bets.iter().map(|p| p.money_in_pot).sum()
   }
 
-  fn get_player_money_in_pot(&self) -> Vec<u32> {
-    self.player_bets.iter().map(|p| p.money_in_pot).collect()
-  }
-
-
   pub fn get_pot_split(&self, winning_indexes: Vec<usize>) -> Vec<u32> {
     let mut pot_split = vec![0; self.player_bets.len()];
 
-    let player_money_in_pot = self.get_player_money_in_pot();
+    let player_money_in_pot = self.player_bets.iter().map(|p| p.money_in_pot).collect::<Vec<u32>>();
     let mut split_amounts = player_money_in_pot.to_vec();
     split_amounts.retain(|&v| v > 0);
     split_amounts.sort();

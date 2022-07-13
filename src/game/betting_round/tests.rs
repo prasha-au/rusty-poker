@@ -165,11 +165,12 @@ fn get_num_players_able_to_bets_returns_proper_values() {
 
 
 #[test]
-fn get_current_player_money_to_call_returns_proper_value() {
+fn get_player_money_to_call_returns_proper_value() {
   let mut br = BettingRound::create_for_players(2);
   br.action_current_player(BettingAction::Raise(200)).unwrap();
   br.action_current_player(BettingAction::Raise(400)).unwrap();
-  assert_eq!(200, br.get_current_player_money_to_call());
+  assert_eq!(200, br.get_player_money_to_call(0));
+  assert_eq!(0, br.get_player_money_to_call(1));
 }
 
 
