@@ -279,15 +279,6 @@ fn game_state_should_return_correct_player_index_of_dealer() {
 }
 
 #[test]
-fn game_state_should_return_correct_num_players_to_act() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
-  game.betting_round.set_new_start_position(0);
-  game.action_current_player(BettingAction::Raise(200)).unwrap();
-  assert_eq!(1, game.get_state(0).num_players_to_act);
-}
-
-#[test]
 fn game_state_should_return_correct_value_to_call() {
   let mut players = create_players(2);
   let mut game = Game::create(to_game_players(&mut players), 1000);

@@ -57,7 +57,7 @@ pub struct GameState {
   pub wallet: u32,
   pub phase: Phase,
   pub players: [Option<PlayerState>; 8],
-  pub num_players_to_act: u8,
+  pub current_player_index: Option<usize>,
   pub dealer_index: usize,
   pub value_to_call: u32,
 }
@@ -273,7 +273,7 @@ impl Game<'_> {
       phase: self.phase,
       wallet: if let Some(s) = player_seat { s.wallet } else { 0 },
       players,
-      num_players_to_act: self.betting_round.get_num_players_to_act(),
+      current_player_index: if let Some(cs) = self.get_current_seat() { Some(cs.player_index) } else { None },
       dealer_index: self.active_seats[self.dealer_index as usize].player_index,
       value_to_call: if let Some(idx) = active_seat_index { self.betting_round.get_player_money_to_call(idx as u8) } else { 0 },
     }

@@ -166,14 +166,6 @@ impl BettingRound {
     self.current_bet - self.player_bets[player_index as usize].money_on_table
   }
 
-  pub fn get_num_players_to_act(&self) -> u8 {
-    if self.is_complete {
-      0
-    } else {
-      self.final_player_index.abs_diff(self.current_player_index) + 1
-    }
-  }
-
   pub fn get_unfolded_player_indexes(&self) -> Vec<u8> {
     self.player_bets.iter().enumerate()
     .filter(|(_, p)| !p.is_folded)

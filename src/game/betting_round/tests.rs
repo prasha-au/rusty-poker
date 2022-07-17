@@ -175,21 +175,6 @@ fn get_player_money_to_call_returns_proper_value() {
 
 
 #[test]
-fn get_num_players_to_act_returns_proper_values() {
-  let mut br = BettingRound::create_for_players(3);
-  br.action_current_player(BettingAction::Raise(200)).unwrap();
-  assert_eq!(2, br.get_num_players_to_act());
-  br.action_current_player(BettingAction::Call).unwrap();
-  assert_eq!(1, br.get_num_players_to_act());
-  br.action_current_player(BettingAction::Raise(200)).unwrap();
-  assert_eq!(2, br.get_num_players_to_act());
-  br.action_current_player(BettingAction::Call).unwrap();
-  br.action_current_player(BettingAction::Call).unwrap();
-  assert_eq!(0, br.get_num_players_to_act());
-}
-
-
-#[test]
 fn if_the_last_opposing_player_folds_it_should_complete() {
   let mut br = BettingRound::create_for_players(2);
   br.set_new_start_position(1);
