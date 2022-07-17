@@ -76,7 +76,7 @@ impl Game<'_> {
       phase: Phase::Init,
       available_cards: Deck::full_deck(),
       table: Deck::new(),
-      dealer_index: 0,
+      dealer_index: (player_count - 1) as u8,
       blind: 20,
       players: players,
       active_seats: (0..player_count).map(|player_index| Seat {
@@ -168,21 +168,22 @@ impl Game<'_> {
       self.active_seats.remove(idx);
     }
 
-    let num_players = self.active_seats.len() as u8;
-    println!("We have {} active players this round", num_players);
-    if num_players < 2 {
+    let num_active_players = self.active_seats.len() as u8;
+    println!("We have {} active players this round", num_active_players);
+    if num_active_players < 2 {
       panic!("We do not have enough players.");
     }
 
     let total_players = self.players.len();
     for i in 1..total_players {
       let new_dealer_player_index = (old_dealer_player_index + i) % total_players;
-      if let Some(_) = self.active_seats.iter().position(|p| p.player_index == new_dealer_player_index) {
+      if let Some(new_dealer_index) = self.active_seats.iter().position(|p| p.player_index == new_dealer_player_index) {
+        self.dealer_index = new_dealer_index as u8;
         break;
       }
     }
 
-    self.betting_round = BettingRound::create_for_players(num_players);
+    self.betting_round = BettingRound::create_for_players(num_active_players);
     self.betting_round.set_new_start_position(self.dealer_index + 1);
 
     self.post_blind(self.blind / 2);

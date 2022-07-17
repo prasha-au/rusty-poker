@@ -79,6 +79,27 @@ fn should_iterate_multiple_rounds() {
   }
 }
 
+#[test]
+fn should_rotate_the_dealer_on_init() {
+  let mut players = create_players(3);
+  let mut game = Game::create(to_game_players(&mut players), 1000);
+  game.dealer_index = 1;
+  game.next();
+  assert_eq!(2, game.dealer_index);
+}
+
+
+#[test]
+fn should_skip_inactive_players_when_picking_dealer() {
+  let mut players = create_players(4);
+  let mut game = Game::create(to_game_players(&mut players), 1000);
+  game.dealer_index = 1;
+  game.active_seats[2].wallet = 0;
+  game.active_seats[3].wallet = 0;
+  game.next();
+  assert_eq!(0, game.dealer_index);
+}
+
 
 #[test]
 fn should_select_the_player_past_blind_to_start_on_preflop() {
@@ -194,6 +215,7 @@ fn game_state_should_return_correct_hand() {
 fn game_state_should_return_correct_hand_for_inactive_player() {
   let mut players = create_players(2);
   let mut game = Game::create(to_game_players(&mut players), 1000);
+  game.dealer_index = 0;
   game.active_seats.remove(0);
   assert_eq!(Deck::new(), game.get_state(0).hand);
 }
@@ -242,6 +264,7 @@ fn game_state_should_return_correct_wallet() {
 fn game_state_should_return_correct_wallet_for_inactive_player() {
   let mut players = create_players(2);
   let mut game = Game::create(to_game_players(&mut players), 1000);
+  game.dealer_index = 0;
   game.active_seats.remove(0);
   assert_eq!(0, game.get_state(0).wallet);
 }
