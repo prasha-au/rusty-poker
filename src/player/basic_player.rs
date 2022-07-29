@@ -1,4 +1,5 @@
-use crate::game::{Phase,Player,BettingAction,GameState};
+use super::{Player};
+use crate::game::{Phase,BettingAction,GameState};
 use crate::evaluator::{chance_to_win, chance_to_win_preflop};
 
 pub struct BasicPlayer {

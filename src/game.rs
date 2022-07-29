@@ -22,21 +22,20 @@ pub enum Phase {
 
 
 struct Seat {
-  player_index: usize,
+  player_index: u8,
   hand: Deck,
   wallet: u32,
 }
 
 
 
-pub struct Game<'a> {
+pub struct Game {
   phase: Phase,
   available_cards: Deck,
   table: Deck,
   betting_round: BettingRound,
   dealer_index: u8,
   blind: u32,
-  players: Vec<Box<&'a mut dyn Player>>,
   active_seats: Vec<Seat>,
 }
 
@@ -57,34 +56,27 @@ pub struct GameState {
   pub wallet: u32,
   pub phase: Phase,
   pub players: [Option<PlayerState>; 8],
-  pub current_player_index: Option<usize>,
-  pub dealer_index: usize,
+  pub current_player_index: Option<u8>,
+  pub dealer_index: u8,
   pub value_to_call: u32,
 }
 
 
-pub trait Player {
-  fn request_action(&self, info: GameState) -> BettingAction;
-}
+impl Game {
 
-
-impl Game<'_> {
-
-  pub fn create<'a>(players: Vec<Box<&'a mut dyn Player>>, initial_wallet: u32) -> Game<'a> {
-    let player_count = players.len();
+  pub fn create(num_players: u8, initial_wallet: u32) -> Game {
     Game {
       phase: Phase::Init,
       available_cards: Deck::full_deck(),
       table: Deck::new(),
-      dealer_index: (player_count - 1) as u8,
+      dealer_index: num_players - 1,
       blind: 20,
-      players: players,
-      active_seats: (0..player_count).map(|player_index| Seat {
+      active_seats: (0..num_players).map(|player_index| Seat {
         player_index,
         hand: Deck::new(),
         wallet: initial_wallet,
       }).collect(),
-      betting_round: BettingRound::create_for_players(player_count as u8)
+      betting_round: BettingRound::create_for_players(num_players)
     }
   }
 
@@ -100,15 +92,23 @@ impl Game<'_> {
 
 
   fn get_current_seat(&self) -> Option<&Seat> {
-    if self.betting_round.is_complete() {
+    if self.phase == Phase::Init || self.phase == Phase::Showdown || self.betting_round.is_complete() {
       None
     } else {
       Some(&self.active_seats[self.betting_round.get_current_player_index() as usize])
     }
   }
 
+  pub fn get_current_player_index(&self) -> Option<u8> {
+    if let Some(curr_seat) = self.get_current_seat() {
+      Some(curr_seat.player_index)
+    } else {
+      None
+    }
+  }
 
-  fn action_current_player(&mut self, action: BettingAction) -> Result<(), &'static str> {
+
+  pub fn action_current_player(&mut self, action: BettingAction) -> Result<(), &'static str> {
     let current_seat_index = self.betting_round.get_current_player_index();
 
     let seat = self.get_current_seat();
@@ -146,12 +146,10 @@ impl Game<'_> {
 
 
   fn post_blind(&mut self, amount: u32) {
-    let player = self.get_current_seat().unwrap();
-    if player.wallet == amount {
-      self.action_current_player(BettingAction::AllIn(amount)).unwrap();
-    } else {
-      self.action_current_player(BettingAction::Raise(amount)).unwrap();
-    }
+    let mut seat = &mut self.active_seats[self.betting_round.get_current_player_index() as usize];
+    let betting_action = if seat.wallet == amount { BettingAction::AllIn(amount) } else { BettingAction::Raise(amount) };
+    let new_money = self.betting_round.action_current_player(betting_action).unwrap();
+    seat.wallet -= new_money;
   }
 
 
@@ -162,11 +160,18 @@ impl Game<'_> {
       self.active_seats[i].hand = Deck::new()
     }
 
-    let old_dealer_player_index = self.active_seats[self.dealer_index as usize].player_index;
-
-    while let Some(idx) = self.active_seats.iter().position(|p| p.wallet < self.blind) {
-      self.active_seats.remove(idx);
+    let mut new_dealer_player_index = None;
+    let mut invalid_player_indexes: Vec<u8> = vec![];
+    for i in 1..self.active_seats.len() {
+      let seat = &self.active_seats[(self.dealer_index as usize + i) % self.active_seats.len()];
+      if seat.wallet < self.blind {
+        invalid_player_indexes.push(seat.player_index);
+      } else if new_dealer_player_index.is_none() {
+        new_dealer_player_index = Some(seat.player_index);
+      }
     }
+
+    self.active_seats.retain(|s| !invalid_player_indexes.contains(&s.player_index));
 
     let num_active_players = self.active_seats.len() as u8;
     println!("We have {} active players this round", num_active_players);
@@ -174,14 +179,7 @@ impl Game<'_> {
       panic!("We do not have enough players.");
     }
 
-    let total_players = self.players.len();
-    for i in 1..total_players {
-      let new_dealer_player_index = (old_dealer_player_index + i) % total_players;
-      if let Some(new_dealer_index) = self.active_seats.iter().position(|p| p.player_index == new_dealer_player_index) {
-        self.dealer_index = new_dealer_index as u8;
-        break;
-      }
-    }
+    self.dealer_index = self.active_seats.iter().position(|s| s.player_index == new_dealer_player_index.unwrap()).unwrap() as u8;
 
     self.betting_round = BettingRound::create_for_players(num_active_players);
     self.betting_round.set_new_start_position(self.dealer_index + 1);
@@ -250,7 +248,7 @@ impl Game<'_> {
   }
 
 
-  pub fn get_state(&self, player_index: usize) -> GameState {
+  pub fn get_state(&self, player_index: u8) -> GameState {
     let player_bets = self.betting_round.get_player_bets();
     let unfolded_players = self.betting_round.get_unfolded_player_indexes();
 
@@ -282,18 +280,14 @@ impl Game<'_> {
 }
 
 
-impl Iterator for Game<'_> {
+impl Iterator for Game {
   type Item = Phase;
 
 
   fn next(&mut self) -> Option<Self::Item> {
 
-    if self.phase != Phase::Init && self.phase != Phase::Showdown {
-      if let Some(curr_seat) = self.get_current_seat() {
-        let action = self.players[curr_seat.player_index].request_action(self.get_state(curr_seat.player_index));
-        self.action_current_player(action).unwrap();
-        return Some(self.phase);
-      }
+    if self.get_current_seat().is_some() {
+      return Some(self.phase);
     }
 
     match self.phase {
@@ -360,26 +354,6 @@ impl Iterator for Game<'_> {
 }
 
 
-
-impl std::fmt::Display for Game<'_> {
-  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
-    writeln!(f, "Pot: ${}   Table: {} ", self.betting_round.get_pot(), self.table)?;
-    writeln!(f, "Plyr      Cards      Bid     Wallet")?;
-    let player_bets = self.betting_round.get_player_bets();
-    let curr_player = self.get_current_seat();
-    for (i, p) in self.active_seats.iter().enumerate() {
-      writeln!(f, "{} {}{}    {}    ${}     ${}   ",
-        p.player_index,
-        if p.player_index as u8 == self.dealer_index { 'D' } else { ' ' },
-        if curr_player.is_some() && curr_player.unwrap().player_index == p.player_index { 'P' } else { ' ' },
-        p.hand,
-        player_bets[i],
-        p.wallet
-      )?;
-    }
-    write!(f, "")
-  }
-}
 
 
 #[cfg(test)]

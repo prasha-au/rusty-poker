@@ -1,5 +1,6 @@
-use crate::game::{Phase, Player, BettingAction, GameState};
+use crate::game::{Phase, BettingAction, GameState};
 use crate::evaluator::{chance_to_win, chance_to_win_preflop};
+use super::{Player};
 use text_io::try_read;
 
 pub struct TerminalPlayer {

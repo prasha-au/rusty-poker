@@ -1,39 +1,30 @@
 use crate::game::*;
-use crate::player::{CallingPlayer};
 
 
-fn create_players(num_players: u8) -> Vec<CallingPlayer> {
-  let mut players = Vec::new();
-  for i in 0..num_players {
-    players.push(CallingPlayer { id: i });
-  }
-  players
-}
-
-fn to_game_players<'a>(players: &'a mut Vec<CallingPlayer>) -> Vec<Box<&'a mut dyn Player>> {
-  players.iter_mut().map(|p| -> Box<&mut dyn Player> { Box::new(p) }).collect()
+fn call_and_next(game: &mut Game) {
+  game.action_current_player(BettingAction::Call).unwrap();
+  game.next();
 }
 
 
 #[test]
 fn should_progress_phases() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
 
   assert_eq!(Phase::Init, game.phase);
   game.next();
 
   assert_eq!(Phase::PreFlop, game.phase);
-  for _ in 0..3 { game.next(); }
+  for _ in 0..2 { call_and_next(&mut game); }
 
   assert_eq!(Phase::Flop, game.phase);
-  for _ in 0..3 { game.next(); }
+  for _ in 0..2 { call_and_next(&mut game); }
 
   assert_eq!(Phase::Turn, game.phase);
-  for _ in 0..3 { game.next(); }
+  for _ in 0..2 { call_and_next(&mut game); }
 
   assert_eq!(Phase::River, game.phase);
-  for _ in 0..3 { game.next(); }
+  for _ in 0..2 { call_and_next(&mut game); }
 
   assert_eq!(Phase::Showdown, game.phase);
 
@@ -43,8 +34,9 @@ fn should_progress_phases() {
 
 
 fn play_round_of_calls(game: &mut Game) {
+  game.next();
   while game.phase != Phase::Showdown {
-    game.next();
+    call_and_next(game);
   }
   game.next();
 }
@@ -52,8 +44,7 @@ fn play_round_of_calls(game: &mut Game) {
 
 #[test]
 fn should_reset_state_between_rounds() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
 
   play_round_of_calls(&mut game);
 
@@ -68,21 +59,19 @@ fn should_reset_state_between_rounds() {
   }
 }
 
-
 #[test]
 fn should_iterate_multiple_rounds() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
+  assert_eq!(Phase::Init, game.phase);
   for _ in 0..4 {
-    assert_eq!(Phase::Init, game.phase);
     play_round_of_calls(&mut game);
+    assert_eq!(Phase::Init, game.phase);
   }
 }
 
 #[test]
 fn should_rotate_the_dealer_on_init() {
-  let mut players = create_players(3);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(3, 1000);
   game.dealer_index = 1;
   game.next();
   assert_eq!(2, game.dealer_index);
@@ -91,8 +80,7 @@ fn should_rotate_the_dealer_on_init() {
 
 #[test]
 fn should_skip_inactive_players_when_picking_dealer() {
-  let mut players = create_players(4);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(4, 1000);
   game.dealer_index = 1;
   game.active_seats[2].wallet = 0;
   game.active_seats[3].wallet = 0;
@@ -103,8 +91,7 @@ fn should_skip_inactive_players_when_picking_dealer() {
 
 #[test]
 fn should_select_the_player_past_blind_to_start_on_preflop() {
-  let mut players = create_players(5);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(5, 1000);
   assert_eq!(Phase::Init, game.phase);
   game.next();
   assert_eq!(Phase::PreFlop, game.phase);
@@ -115,8 +102,7 @@ fn should_select_the_player_past_blind_to_start_on_preflop() {
 
 #[test]
 fn should_select_the_player_past_blind_to_start_on_preflop_circular() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
   assert_eq!(Phase::Init, game.phase);
   game.next();
   assert_eq!(Phase::PreFlop, game.phase);
@@ -126,9 +112,10 @@ fn should_select_the_player_past_blind_to_start_on_preflop_circular() {
 
 #[test]
 fn should_let_big_blind_bet() {
-  let mut players = create_players(3);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
-  for _ in 0..2 { game.next(); }
+  let mut game = Game::create(3, 1000);
+  game.next();
+  assert_eq!(Phase::PreFlop, game.phase);
+  for _ in 0..2 { call_and_next(&mut game); }
   assert_eq!(Some(Phase::PreFlop), game.next());
   assert_eq!(2, game.get_current_seat().unwrap().player_index);
 }
@@ -136,22 +123,20 @@ fn should_let_big_blind_bet() {
 
 #[test]
 fn should_select_the_small_blind_player_to_start_on_other_phases() {
-  let mut players = create_players(5);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(5, 1000);
   assert_eq!(Some(Phase::PreFlop), game.next());
   assert_eq!(3, game.get_current_seat().unwrap().player_index);
-  for _ in 0..5 { game.next(); }
+  for _ in 0..5 { call_and_next(&mut game); }
   assert_eq!(Some(Phase::Flop), game.next());
   assert_eq!(1, game.get_current_seat().unwrap().player_index);
 }
 
 
-
 #[test]
 fn should_only_split_pot_between_players_who_have_not_folded() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
 
+  game.phase = Phase::PreFlop;
   game.betting_round.set_new_start_position(0);
   game.action_current_player(BettingAction::Raise(200)).unwrap();
   game.action_current_player(BettingAction::Call).unwrap();
@@ -183,20 +168,36 @@ fn should_only_split_pot_between_players_who_have_not_folded() {
 
 #[test]
 fn should_decrement_seat_wallet_on_bet() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
+  game.phase = Phase::PreFlop;
   game.betting_round.set_new_start_position(0);
   game.action_current_player(BettingAction::Raise(200)).unwrap();
   assert_eq!(800, game.active_seats[0].wallet);
   assert_eq!(1000, game.active_seats[1].wallet);
 }
 
+#[test]
+fn should_return_current_player_index_properly() {
+  let mut game = Game::create(3, 1000);
+  game.active_seats.remove(0);
+  game.phase = Phase::PreFlop;
+  game.betting_round.set_new_start_position(0);
+  assert_eq!(Some(1), game.get_current_player_index());
+}
+
+#[test]
+fn should_return_current_player_index_as_none_when_between_phases() {
+  let mut game = Game::create(3, 1000);
+  game.phase = Phase::Init;
+  assert_eq!(None, game.get_current_player_index());
+  game.phase = Phase::Showdown;
+  assert_eq!(None, game.get_current_player_index());
+}
 
 
 #[test]
 fn game_state_should_return_correct_hand() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
   game.active_seats[0].hand = Deck::from_cards(&vec![
     Card::new(Suit::Diamond, Rank::Four),
     Card::new(Suit::Diamond, Rank::Three),
@@ -213,8 +214,7 @@ fn game_state_should_return_correct_hand() {
 
 #[test]
 fn game_state_should_return_correct_hand_for_inactive_player() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
   game.dealer_index = 0;
   game.active_seats.remove(0);
   assert_eq!(Deck::new(), game.get_state(0).hand);
@@ -223,8 +223,8 @@ fn game_state_should_return_correct_hand_for_inactive_player() {
 
 #[test]
 fn game_state_should_return_correct_pot() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
+  game.phase = Phase::PreFlop;
   assert_eq!(0, game.get_state(0).total_pot);
   game.betting_round.set_new_start_position(0);
   game.action_current_player(BettingAction::Raise(200)).unwrap();
@@ -233,8 +233,7 @@ fn game_state_should_return_correct_pot() {
 
 #[test]
 fn game_state_should_return_correct_table() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
   game.table = Deck::from_cards(&vec![
     Card::new(Suit::Heart, Rank::Ten),
     Card::new(Suit::Club, Rank::King),
@@ -245,16 +244,15 @@ fn game_state_should_return_correct_table() {
 
 #[test]
 fn game_state_should_return_correct_phase() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
   game.phase = Phase::River;
   assert_eq!(Phase::River, game.get_state(1).phase);
 }
 
 #[test]
 fn game_state_should_return_correct_wallet() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
+  game.phase = Phase::PreFlop;
   game.betting_round.set_new_start_position(0);
   game.action_current_player(BettingAction::Raise(200)).unwrap();
   assert_eq!(800, game.get_state(0).wallet);
@@ -262,8 +260,7 @@ fn game_state_should_return_correct_wallet() {
 
 #[test]
 fn game_state_should_return_correct_wallet_for_inactive_player() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
   game.dealer_index = 0;
   game.active_seats.remove(0);
   assert_eq!(0, game.get_state(0).wallet);
@@ -271,8 +268,7 @@ fn game_state_should_return_correct_wallet_for_inactive_player() {
 
 #[test]
 fn game_state_should_return_correct_player_index_of_dealer() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
   game.dealer_index = 0;
   game.active_seats.remove(0);
   assert_eq!(1, game.get_state(0).dealer_index);
@@ -280,8 +276,8 @@ fn game_state_should_return_correct_player_index_of_dealer() {
 
 #[test]
 fn game_state_should_return_correct_value_to_call() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
+  game.phase = Phase::PreFlop;
   game.betting_round.set_new_start_position(0);
   game.action_current_player(BettingAction::Raise(200)).unwrap();
   assert_eq!(0, game.get_state(0).value_to_call);
@@ -290,8 +286,8 @@ fn game_state_should_return_correct_value_to_call() {
 
 #[test]
 fn game_state_should_return_correct_player_info() {
-  let mut players = create_players(2);
-  let mut game = Game::create(to_game_players(&mut players), 1000);
+  let mut game = Game::create(2, 1000);
+  game.phase = Phase::PreFlop;
   game.betting_round.set_new_start_position(0);
   game.action_current_player(BettingAction::Raise(200)).unwrap();
   game.action_current_player(BettingAction::Fold).unwrap();

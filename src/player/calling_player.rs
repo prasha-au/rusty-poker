@@ -1,4 +1,5 @@
-use crate::game::{Player,BettingAction,GameState};
+use super::{Player};
+use crate::game::{BettingAction,GameState};
 
 pub struct CallingPlayer {
   pub id: u8,

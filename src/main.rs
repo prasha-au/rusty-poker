@@ -1,6 +1,17 @@
 use rusty_poker::*;
 
 
+
+fn iterate_with_player(game: &mut Game, players: &Vec<Box<&mut dyn Player>>) -> Option<Phase> {
+  if let Some(curr_index) = game.get_current_player_index() {
+    let action = players[curr_index as usize].request_action(game.get_state(curr_index));
+    game.action_current_player(action).unwrap();
+  }
+  game.next()
+}
+
+
+
 fn main() {
   println!("Testing a game!");
 
@@ -21,13 +32,13 @@ fn main() {
   ];
 
 
-  let mut game = Game::create(players, 200);
+  let mut game = Game::create(2, 200);
 
 
   let mut rounds_played = 1;
 
   println!("==== Round {} ============================================================================================", rounds_played);
-  while let Some(phase) = game.next() {
+  while let Some(phase) = iterate_with_player(&mut game, &players) {
     if phase == Phase::Init {
       rounds_played = rounds_played + 1;
       println!("==== Round {} ============================================================================================", rounds_played);
