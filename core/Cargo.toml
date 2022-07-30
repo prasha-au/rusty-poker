@@ -1,0 +1,19 @@
+[package]
+name = "rusty_poker_core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+doctest = false
+
+[features]
+eval_two_plus_two = []
+
+[dependencies]
+strum = "0.24"
+strum_macros = "0.24"
+rand = "0.8.5"
+byteorder = "1.4.3"
+
+[dev-dependencies]
+ntest = "0.7.2"

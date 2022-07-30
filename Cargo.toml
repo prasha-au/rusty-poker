@@ -1,23 +1,6 @@
-[package]
-name = "rusty_poker"
-version = "0.1.0"
-edition = "2021"
-
-[lib]
-doctest = false
-
-[features]
-eval_two_plus_two = []
 
 [profile.dev]
 opt-level = 1
 
-[dependencies]
-strum = "0.24"
-strum_macros = "0.24"
-rand = "0.8.5"
-byteorder = "1.4.3"
-text_io = "0.1.10"
-
-[dev-dependencies]
-ntest = "0.7.2"
+[workspace]
+members = ["core", "cli_basic"]

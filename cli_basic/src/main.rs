@@ -1,5 +1,8 @@
-use rusty_poker::*;
+use rusty_poker_core::{player::{CallingPlayer, Player, BasicPlayer}, game::{Game, Phase}};
 
+mod terminal_player;
+
+use terminal_player::*;
 
 
 fn iterate_with_player(game: &mut Game, players: &Vec<Box<&mut dyn Player>>) -> Option<Phase> {

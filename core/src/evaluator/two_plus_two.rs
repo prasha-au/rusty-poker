@@ -11,7 +11,7 @@ static LOAD_RANKS_ONCE: Once = Once::new();
 
 fn init_two_plus_two_table() {
   LOAD_RANKS_ONCE.call_once(|| {
-    let mut file = File::open("HandRanks.dat").expect("File not found");
+    let mut file = File::open("../HandRanks.dat").expect("File not found");
     unsafe {
       file.read_u32_into::<LittleEndian>(&mut HAND_RANKS).expect("Could not read the file.");
     }

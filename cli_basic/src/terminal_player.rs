@@ -1,6 +1,5 @@
-use crate::game::{Phase, BettingAction, GameState};
-use crate::evaluator::{chance_to_win, chance_to_win_preflop};
-use super::{Player};
+
+use rusty_poker_core::{player::Player, game::{GameState, BettingAction, Phase}, evaluator::{chance_to_win, chance_to_win_preflop}};
 use text_io::try_read;
 
 pub struct TerminalPlayer {
