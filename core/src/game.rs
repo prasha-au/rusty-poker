@@ -117,12 +117,9 @@ impl Game {
     }
     let seat = seat.unwrap();
 
-    println!("Actioning {:?} for player at index {}", action, seat.player_index);
-
-
     if let BettingAction::Raise(amount) = action {
       if amount > seat.wallet {
-        return Err("Cannot raise more than you have!");
+        return Err("Cannot raise more than you have.");
       } else if amount == seat.wallet {
         return Err("You must go all in.");
       }
@@ -174,7 +171,6 @@ impl Game {
     self.active_seats.retain(|s| !invalid_player_indexes.contains(&s.player_index));
 
     let num_active_players = self.active_seats.len() as u8;
-    println!("We have {} active players this round", num_active_players);
     if num_active_players < 2 {
       panic!("We do not have enough players.");
     }
@@ -227,22 +223,8 @@ impl Game {
       .filter(|(i, _)| active_scores[*i] == *winning_score)
       .map(|(i, _)| i).collect::<Vec<usize>>();
 
-    println!("Table {} Pot ${}", self.table, self.betting_round.get_pot());
-    for (idx, seat) in self.active_seats.iter().enumerate() {
-      println!(
-        "Player {} has {} for {:?} ({}) [{}]",
-        seat.player_index,
-        seat.hand,
-        get_hand_for_score(active_scores[idx]),
-        active_scores[idx],
-        if winning_indexes.contains(&idx) { 'W' } else { 'L' }
-      );
-    }
-
-
     let pot_splits = self.betting_round.get_pot_split(winning_indexes);
     for (idx, &split) in pot_splits.iter().enumerate() {
-      println!("Player at index {} wins ${}", idx, split);
       self.active_seats[idx].wallet += split;
     }
   }
@@ -292,29 +274,24 @@ impl Iterator for Game {
 
     match self.phase {
       Phase::Init => {
-        println!("========= Init =========");
         self.init_round();
-        println!("========= Dealing pre-flop ========");
         self.deal_cards_to_players();
         self.phase = Phase::PreFlop;
       },
       Phase::PreFlop => {
         if self.betting_round.get_num_players_able_to_bets() > 1 {
           self.betting_round.reset_for_next_phase();
-          println!("========= Dealing flop ========");
           self.deal_cards_to_table(3);
 
           self.betting_round.set_new_start_position(self.dealer_index + 1);
           self.phase = Phase::Flop;
         } else {
-          println!("Going to showdown");
           self.phase = Phase::Showdown;
         }
       }
       Phase::Flop => {
         if self.betting_round.get_num_players_able_to_bets() > 1 {
           self.betting_round.reset_for_next_phase();
-          println!("========= Dealing turn ========");
           self.deal_cards_to_table(1);
           self.phase = Phase::Turn;
         } else {
@@ -324,7 +301,6 @@ impl Iterator for Game {
       Phase::Turn => {
         if self.betting_round.get_num_players_able_to_bets() > 1 {
           self.betting_round.reset_for_next_phase();
-          println!("========= Dealing river ========");
           self.deal_cards_to_table(1);
           self.phase = Phase::River;
         } else {
@@ -335,7 +311,6 @@ impl Iterator for Game {
         self.phase = Phase::Showdown;
       },
       Phase::Showdown => {
-        println!("========= Showdown ========");
         let cards_on_table = self.table.get_cards().len() as u8;
         if cards_on_table < 5 {
           self.deal_cards_to_table(5 - cards_on_table);

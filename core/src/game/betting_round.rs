@@ -104,8 +104,8 @@ impl BettingRound {
         player.money_in_pot += value_to_subtract;
       }
       BettingAction::Raise(bet) => {
-        if (player.money_on_table + bet) < self.current_bet {
-          return Err("Raise must be greater than current bet");
+        if (player.money_on_table + bet) <= self.current_bet {
+          return Err("Raise must be greater than current bet.");
         }
         value_to_subtract = bet;
         player.money_on_table += bet;
@@ -132,7 +132,7 @@ impl BettingRound {
 
     let new_final_player = &self.player_bets[self.final_player_index as usize];
     if !new_final_player.is_able_to_bet() {
-      panic!("We are setting an invalid item as final player");
+      panic!("We are setting an invalid item as final player.");
     }
 
     loop {

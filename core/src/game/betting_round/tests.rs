@@ -31,6 +31,13 @@ fn raising_extends_betting() {
   assert_eq!(false, br.is_complete);
 }
 
+#[test]
+fn cannot_raise_equal_to_bet() {
+  let mut br = BettingRound::create_for_players(2);
+  br.action_current_player(BettingAction::Raise(200)).unwrap();
+  assert_eq!(Err("Raise must be greater than current bet."), br.action_current_player(BettingAction::Raise(200)));
+  assert_eq!(Err("Raise must be greater than current bet."), br.action_current_player(BettingAction::Raise(10)));
+}
 
 
 #[test]
