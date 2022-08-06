@@ -1,0 +1,11 @@
+[package]
+name = "cli_ui"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+rusty_poker_core = { path = "../core" }
+tui = "0.18"
+crossterm = "0.23"
+

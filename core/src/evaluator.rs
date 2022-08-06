@@ -101,11 +101,7 @@ pub fn chance_to_win(table: &Deck, hand: &Deck) -> f32 {
     iterate_games(table, hand, &mut wins, &mut games);
   }
 
-  let percent = (wins as f32) / (games as f32);
-
-  println!("{}/{} {:.5}", wins, games, percent);
-
-  percent
+  (wins as f32) / (games as f32)
 }
 
 
