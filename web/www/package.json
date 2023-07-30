@@ -1,0 +1,20 @@
+{
+  "name": "rusty_poker_web",
+  "version": "1.0.0",
+  "description": "Rusty Poker Web Interface",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack --config webpack.config.js",
+    "start": "webpack-dev-server"
+  },
+  "author": "Prashanth Santhirakumaran",
+  "license": "MIT",
+  "devDependencies": {
+    "copy-webpack-plugin": "^5.0.0",
+    "esbuild-loader": "^3.0.1",
+    "rusty_poker_web": "file:../pkg",
+    "webpack": "^4.29.3",
+    "webpack-cli": "^3.1.0",
+    "webpack-dev-server": "^3.1.5"
+  }
+}

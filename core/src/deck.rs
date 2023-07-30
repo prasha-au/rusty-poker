@@ -32,6 +32,9 @@ impl Deck {
     Deck { value: 0x000F_FFFF_FFFF_FFFF }
   }
 
+  pub fn from_value(value: u64) -> Deck {
+    Deck { value }
+  }
 
   pub fn from_cards(cards: &Vec<Card>) -> Deck {
     let mut value = 0u64;
