@@ -13,6 +13,9 @@
     "sourceMap": true,
     "strict": true,
     "target": "ES2020",
-    "allowImportingTsExtensions": true
-  }
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "rusty_poker_web": ["../pkg/"],
+    }
+  },
 }
