@@ -1,10 +1,7 @@
-use rumqttc::{MqttOptions, AsyncClient, EventLoop, QoS, Incoming, Packet, Event};
+use rumqttc::{MqttOptions, AsyncClient, EventLoop, QoS, Packet, Event};
 use rusty_poker_core::game::{Game, GameState, BettingAction};
 use rusty_poker_core::player::Player;
-use tokio::task::yield_now;
-use tokio::{task::JoinHandle, time};
 use std::time::Duration;
-use std::error::Error;
 
 
 pub struct GameServer {
@@ -60,12 +57,26 @@ impl GameServer {
         println!("Waiting for player id {}", &player_id);
         let action = self.wait_for_message(format!("rusty_poker/{}", &player_id).as_str()).await;
         println!("Got an action for player id {}: {}", &player_id, action);
-        let player = self.players[curr_index as usize].as_ref();
-        self.game.action_current_player(player.get_action_from_message(action.as_str())).unwrap();
+        self.game.action_current_player(self.players[curr_index as usize].get_action_from_message(action.as_str())).unwrap();
       }
       self.game.next();
-      let game_state = self.game.get_state(1);
-      self.mqtt_client.publish("rusty_poker/gamestate", QoS::AtLeastOnce, false, format!("{:?}", game_state)).await.unwrap();
+      self.broadcast_game_state().await;
+    }
+  }
+
+  async fn broadcast_game_state(&mut self) {
+    let game_state = self.game.get_state(100);
+    self.mqtt_client.publish("rusty_poker/gamestate", QoS::AtLeastOnce, false, format!("{:?}", game_state)).await.unwrap();
+
+    // broadcast player specific state
+    if let Some(curr_index) = self.game.get_current_player_index() {
+      let game_state = self.game.get_state(curr_index);
+      self.mqtt_client.publish(
+        format!("rusty_poker/gamestate/{}", self.players[curr_index as usize].get_id()),
+        QoS::AtLeastOnce,
+        false,
+        format!("{:?}", game_state)
+      ).await.unwrap();
     }
   }
 
