@@ -132,32 +132,20 @@ impl Game {
       EasyBettingAction::Fold => BettingAction::Fold,
     };
 
-    // if let BettingAction::Raise(amount) = cleaned_action {
-    //   if amount > seat.wallet {
-    //     return Err("Cannot raise more than you have.");
-    //   } else if amount == seat.wallet {
-    //     return Err("You must go all in.");
-    //   }
-    // } else if let BettingAction::Call = cleaned_action {
-    //   let deficit = self.betting_round.get_player_money_to_call(current_seat_index);
-    //   if deficit > seat.wallet {
-    //     return Err("Cannot call more than you have!");
-    //   } else if deficit == seat.wallet {
-    //     return Err("You must go all in.");
-    //   }
-    // } else if let BettingAction::AllIn(amount) = cleaned_action {
-    //   if amount != seat.wallet {
-    //     return Err("Must go all in with your entire wallet.");
-    //   }
-    // }
-
     let new_money = self.betting_round.action_current_player(betting_action).unwrap();
     self.active_seats[current_seat_index as usize].wallet -= new_money;
     Ok(())
   }
 
   fn post_blind(&mut self, amount: u32) {
-    self.action_current_player(EasyBettingAction::Raise(amount)).unwrap();
+    let mut seat = &mut self.active_seats[self.betting_round.get_current_player_index() as usize];
+    let betting_action = if seat.wallet == amount {
+      BettingAction::AllIn(amount)
+    } else {
+      BettingAction::Raise(amount)
+    };
+    let new_money = self.betting_round.action_current_player(betting_action).unwrap();
+    seat.wallet -= new_money;
   }
 
   fn init_round(&mut self) {

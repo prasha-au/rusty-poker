@@ -1,7 +1,7 @@
 use crate::game::*;
 
 fn call_and_next(game: &mut Game) {
-  game.action_current_player(BettingAction::Call).unwrap();
+  game.action_current_player(EasyBettingAction::Call).unwrap();
   game.next();
 }
 

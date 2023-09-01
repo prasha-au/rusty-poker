@@ -84,7 +84,7 @@ pub fn run_tui() -> Result<(), io::Error> {
   let mut actions_state = ActionsState::new();
 
   loop {
-    let game_state = game.get_state(0);
+    let game_state = game.get_state(None);
     actions_state.update_game_state(&game_state);
 
     terminal.draw(|f| render(f, &game_state, &mut actions_state))?;
@@ -97,7 +97,7 @@ pub fn run_tui() -> Result<(), io::Error> {
           }
         }
         _ => {
-          let action = players[curr_index as usize].request_action(game.get_state(curr_index));
+          let action = players[curr_index as usize].request_action(game.get_state(Some(curr_index)));
           game.action_current_player(action).unwrap();
         }
       }
