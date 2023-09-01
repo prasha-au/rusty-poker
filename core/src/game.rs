@@ -104,48 +104,43 @@ impl Game {
   }
 
   pub fn action_current_player(&mut self, action: EasyBettingAction) -> Result<(), &'static str> {
-    let current_seat_index = self.betting_round.get_current_player_index();
-
     let seat = self.get_current_seat();
     if seat.is_none() {
       return Err("This is not the right time to bet.");
     }
-    let seat = seat.unwrap();
-
-    let betting_action = match action {
-      EasyBettingAction::Raise(amount) => {
-        if amount > seat.wallet {
-          BettingAction::AllIn(seat.wallet)
-        } else {
-          BettingAction::Raise(amount)
-        }
-      }
-      EasyBettingAction::Call => {
-        let deficit = self.betting_round.get_player_money_to_call(current_seat_index);
-        if deficit >= seat.wallet {
-          BettingAction::AllIn(seat.wallet)
-        } else {
-          BettingAction::Call
-        }
-      }
-      EasyBettingAction::AllIn => BettingAction::AllIn(seat.wallet),
-      EasyBettingAction::Fold => BettingAction::Fold,
-    };
-
-    let new_money = self.betting_round.action_current_player(betting_action).unwrap();
-    self.active_seats[current_seat_index as usize].wallet -= new_money;
+    self.bet_for_current_player(action);
     Ok(())
   }
 
   fn post_blind(&mut self, amount: u32) {
-    let mut seat = &mut self.active_seats[self.betting_round.get_current_player_index() as usize];
-    let betting_action = if seat.wallet == amount {
-      BettingAction::AllIn(amount)
-    } else {
-      BettingAction::Raise(amount)
+    self.bet_for_current_player(EasyBettingAction::Raise(amount));
+  }
+
+  fn bet_for_current_player(&mut self, action: EasyBettingAction) {
+    let player_index = self.betting_round.get_current_player_index();
+    let seat = &self.active_seats[player_index as usize];
+    let betting_action = match action {
+      EasyBettingAction::Raise(amount) => {
+        if amount > seat.wallet {
+          BettingActionWithAmount::AllIn(seat.wallet)
+        } else {
+          BettingActionWithAmount::Raise(amount)
+        }
+      }
+      EasyBettingAction::Call => {
+        let deficit = self.betting_round.get_player_money_to_call(player_index);
+        if deficit >= seat.wallet {
+          BettingActionWithAmount::AllIn(seat.wallet)
+        } else {
+          BettingActionWithAmount::Call
+        }
+      }
+      EasyBettingAction::AllIn => BettingActionWithAmount::AllIn(seat.wallet),
+      EasyBettingAction::Fold => BettingActionWithAmount::Fold,
     };
+
     let new_money = self.betting_round.action_current_player(betting_action).unwrap();
-    seat.wallet -= new_money;
+    self.active_seats[player_index as usize].wallet -= new_money;
   }
 
   fn init_round(&mut self) {

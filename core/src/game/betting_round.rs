@@ -1,5 +1,5 @@
 #[derive(Debug)]
-pub enum BettingAction {
+pub enum BettingActionWithAmount {
   Fold,
   Call,
   Raise(u32),
@@ -79,7 +79,7 @@ impl BettingRound {
     self.final_player_index = self.get_prev_active_index(next_index);
   }
 
-  pub fn action_current_player(&mut self, action: BettingAction) -> Result<u32, &'static str> {
+  pub fn action_current_player(&mut self, action: BettingActionWithAmount) -> Result<u32, &'static str> {
     if self.is_complete {
       return Err("Betting has concluded.");
     }
@@ -88,18 +88,18 @@ impl BettingRound {
     let player = &mut self.player_bets[self.current_player_index as usize];
     let mut value_to_subtract = 0;
     match action {
-      BettingAction::Fold => {
+      BettingActionWithAmount::Fold => {
         player.is_folded = true;
         if self.get_num_players_able_to_bets() < 2 {
           self.is_complete = true;
         }
       }
-      BettingAction::Call => {
+      BettingActionWithAmount::Call => {
         value_to_subtract = self.current_bet - player.money_on_table;
         player.money_on_table = self.current_bet;
         player.money_in_pot += value_to_subtract;
       }
-      BettingAction::Raise(bet) => {
+      BettingActionWithAmount::Raise(bet) => {
         if (player.money_on_table + bet) <= self.current_bet {
           return Err("Raise must be greater than current bet.");
         }
@@ -109,7 +109,7 @@ impl BettingRound {
         self.current_bet = player.money_on_table;
         self.final_player_index = previous_player_index;
       }
-      BettingAction::AllIn(remaining_amount) => {
+      BettingActionWithAmount::AllIn(remaining_amount) => {
         value_to_subtract = remaining_amount;
         player.money_on_table += remaining_amount;
         player.money_in_pot += value_to_subtract;
