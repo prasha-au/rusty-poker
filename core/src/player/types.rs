@@ -1,6 +1,5 @@
-use crate::game::{BettingAction, GameState};
-
+use crate::game::{EasyBettingAction, GameState};
 
 pub trait Player {
-  fn request_action(&self, info: GameState) -> BettingAction;
+  fn request_action(&self, info: GameState) -> EasyBettingAction;
 }

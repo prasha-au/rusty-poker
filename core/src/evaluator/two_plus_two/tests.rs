@@ -1,6 +1,6 @@
+use super::super::test_helpers::evaluator_correctness_tests;
 use super::*;
-use super::super::test_helpers::{evaluator_correctness_tests};
-use ntest::{timeout};
+use ntest::timeout;
 
 #[test]
 #[timeout(200)]

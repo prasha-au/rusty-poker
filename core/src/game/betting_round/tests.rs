@@ -1,4 +1,3 @@
-
 use super::*;
 
 #[test]
@@ -22,7 +21,6 @@ fn calling_a_raise() {
   assert_eq!(200, br.current_bet);
 }
 
-
 #[test]
 fn raising_extends_betting() {
   let mut br = BettingRound::create_for_players(2);
@@ -35,10 +33,15 @@ fn raising_extends_betting() {
 fn cannot_raise_equal_to_bet() {
   let mut br = BettingRound::create_for_players(2);
   br.action_current_player(BettingAction::Raise(200)).unwrap();
-  assert_eq!(Err("Raise must be greater than current bet."), br.action_current_player(BettingAction::Raise(200)));
-  assert_eq!(Err("Raise must be greater than current bet."), br.action_current_player(BettingAction::Raise(10)));
+  assert_eq!(
+    Err("Raise must be greater than current bet."),
+    br.action_current_player(BettingAction::Raise(200))
+  );
+  assert_eq!(
+    Err("Raise must be greater than current bet."),
+    br.action_current_player(BettingAction::Raise(10))
+  );
 }
-
 
 #[test]
 fn skip_players_who_have_folded() {
@@ -52,7 +55,6 @@ fn skip_players_who_have_folded() {
   assert_eq!(true, br.is_complete);
 }
 
-
 #[test]
 fn skip_players_who_have_gone_all_in() {
   let mut br = BettingRound::create_for_players(4);
@@ -65,7 +67,6 @@ fn skip_players_who_have_gone_all_in() {
   assert_eq!(true, br.is_complete);
 }
 
-
 #[test]
 fn player_money_on_table_should_update() {
   let mut br = BettingRound::create_for_players(3);
@@ -77,13 +78,15 @@ fn player_money_on_table_should_update() {
   assert_eq!(200, br.player_bets[2].money_on_table);
 }
 
-
 #[test]
 fn should_error_when_concluded() {
   let mut br = BettingRound::create_for_players(2);
   br.action_current_player(BettingAction::Call).unwrap();
   br.action_current_player(BettingAction::Call).unwrap();
-  assert_eq!(Err("Betting has concluded."), br.action_current_player(BettingAction::Call));
+  assert_eq!(
+    Err("Betting has concluded."),
+    br.action_current_player(BettingAction::Call)
+  );
 }
 
 #[test]
@@ -94,8 +97,6 @@ fn correct_value_for_player_bets() {
   br.action_current_player(BettingAction::AllIn(100)).unwrap();
   assert_eq!(vec![0, 200, 100], br.get_player_bets());
 }
-
-
 
 #[test]
 fn restarting_bets_resets_values() {
@@ -138,7 +139,6 @@ fn setting_new_start_position_ignores_inactive_players() {
   assert_eq!(3, br.get_current_player_index());
 }
 
-
 #[test]
 fn setting_new_start_position_picks_first_if_available() {
   let mut br = BettingRound::create_for_players(2);
@@ -149,7 +149,6 @@ fn setting_new_start_position_picks_first_if_available() {
   assert_eq!(0, br.get_current_player_index());
 }
 
-
 #[test]
 fn setting_new_start_position_resolves_given_value_circularly() {
   let mut br = BettingRound::create_for_players(2);
@@ -158,7 +157,6 @@ fn setting_new_start_position_resolves_given_value_circularly() {
   br.set_new_start_position(5);
   assert_eq!(1, br.get_current_player_index());
 }
-
 
 #[test]
 fn get_num_players_able_to_bets_returns_proper_values() {
@@ -170,7 +168,6 @@ fn get_num_players_able_to_bets_returns_proper_values() {
   assert_eq!(2, br.get_num_players_able_to_bets());
 }
 
-
 #[test]
 fn get_player_money_to_call_returns_proper_value() {
   let mut br = BettingRound::create_for_players(2);
@@ -179,7 +176,6 @@ fn get_player_money_to_call_returns_proper_value() {
   assert_eq!(200, br.get_player_money_to_call(0));
   assert_eq!(0, br.get_player_money_to_call(1));
 }
-
 
 #[test]
 fn if_the_last_opposing_player_folds_it_should_complete() {
@@ -242,4 +238,3 @@ fn should_split_pot_evenly_between_winners() {
   br.action_current_player(BettingAction::Call).unwrap();
   assert_eq!(vec![400, 400, 400], br.get_pot_split(vec![0, 1, 2]));
 }
-

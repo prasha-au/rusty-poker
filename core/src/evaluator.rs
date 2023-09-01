@@ -1,14 +1,13 @@
 use crate::card::*;
 use crate::deck::*;
 
-mod types;
+mod ck_perfect_hash;
 mod preflop_tables;
 mod two_plus_two;
-mod ck_perfect_hash;
+mod types;
 
-use types::*;
 use preflop_tables::*;
-
+use types::*;
 
 fn score_to_hand(score: u16) -> Hand {
   if cfg!(feature = "eval_two_plus_two") {
@@ -18,7 +17,6 @@ fn score_to_hand(score: u16) -> Hand {
   }
 }
 
-
 fn evaluate_score(cards: [u8; 7]) -> u16 {
   if cfg!(feature = "eval_two_plus_two") {
     two_plus_two::evaluate_score(cards)
@@ -26,7 +24,6 @@ fn evaluate_score(cards: [u8; 7]) -> u16 {
     ck_perfect_hash::evaluate_score(cards)
   }
 }
-
 
 fn cards_to_fixed_array(cards: &Vec<Card>) -> [u8; 7] {
   let mut numeric_vec: Vec<u8> = cards.iter().map(|c| u8::from(*c)).collect();
@@ -36,13 +33,7 @@ fn cards_to_fixed_array(cards: &Vec<Card>) -> [u8; 7] {
   numeric_vec[0..7].try_into().unwrap()
 }
 
-
-fn iterate_end_game(
-  table_values: &Deck,
-  player_values: &Deck,
-  wins: &mut u32,
-  games: &mut u32
-) {
+fn iterate_end_game(table_values: &Deck, player_values: &Deck, wins: &mut u32, games: &mut u32) {
   let used_cards = *table_values + *player_values;
   let available_cards = used_cards.get_available_cards();
 
@@ -68,13 +59,7 @@ fn iterate_end_game(
   }
 }
 
-
-fn iterate_games(
-  table_values: &Deck,
-  player_values: &Deck,
-  wins: &mut u32,
-  games: &mut u32
-) {
+fn iterate_games(table_values: &Deck, player_values: &Deck, wins: &mut u32, games: &mut u32) {
   let used_cards = *table_values + *player_values;
   let available_cards = used_cards.get_available_cards();
   let table_cards_played = 52 - 2 - available_cards.len();
@@ -90,7 +75,6 @@ fn iterate_games(
   }
 }
 
-
 pub fn chance_to_win(table: &Deck, hand: &Deck) -> f32 {
   let mut wins = 0;
   let mut games = 0;
@@ -104,7 +88,6 @@ pub fn chance_to_win(table: &Deck, hand: &Deck) -> f32 {
   (wins as f32) / (games as f32)
 }
 
-
 pub fn get_hand_score(table: &Deck, hand: &Deck) -> u16 {
   let combined = *table + *hand;
   let fixedarr = cards_to_fixed_array(&combined.get_cards());
@@ -114,7 +97,6 @@ pub fn get_hand_score(table: &Deck, hand: &Deck) -> u16 {
 pub fn get_hand_for_score(score: u16) -> Hand {
   score_to_hand(score)
 }
-
 
 pub fn chance_to_win_preflop(hand: &Deck, num_players: u8) -> f32 {
   let cards_in_hand = hand.get_cards();
@@ -126,8 +108,6 @@ pub fn chance_to_win_preflop(hand: &Deck, num_players: u8) -> f32 {
     PREFLOP_ODDS_UNSUITED[num_players as usize][rank1 as usize][rank2 as usize]
   }
 }
-
-
 
 #[cfg(test)]
 mod test_helpers;

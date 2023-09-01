@@ -1,23 +1,19 @@
-use rumqttc::{MqttOptions, AsyncClient, EventLoop, QoS, Packet, Event};
-use rusty_poker_core::game::{Game, GameState, BettingAction};
+use rumqttc::{AsyncClient, Event, EventLoop, MqttOptions, Packet, QoS};
+use rusty_poker_core::game::{EasyBettingAction, Game, GameState};
 use rusty_poker_core::player::Player;
 use std::time::Duration;
-
 
 pub struct GameServer {
   mqtt_client: AsyncClient,
   mqtt_eventloop: EventLoop,
   game: Game,
-  players: Vec<Box<dyn PlayerWithId>>
+  players: Vec<Box<dyn PlayerWithId>>,
 }
-
 
 trait PlayerWithId: Player {
   fn get_id(&self) -> String;
-  fn get_action_from_message(&self, request: &str) -> BettingAction;
+  fn get_action_from_message(&self, request: &str) -> EasyBettingAction;
 }
-
-
 
 impl GameServer {
   pub fn create() -> Self {
@@ -27,7 +23,7 @@ impl GameServer {
 
     let players: Vec<Box<dyn PlayerWithId>> = vec![
       Box::new(MqttPlayer { id: String::from("p1") }),
-      Box::new(MqttPlayer { id: String::from("p2") })
+      Box::new(MqttPlayer { id: String::from("p2") }),
     ];
 
     Self {
@@ -38,26 +34,37 @@ impl GameServer {
     }
   }
 
-
   pub async fn run_server(&mut self) {
-    self.mqtt_client.publish("rusty_poker/hello", QoS::AtLeastOnce, false, "game-started").await.unwrap();
+    self
+      .mqtt_client
+      .publish("rusty_poker/hello", QoS::AtLeastOnce, false, "game-started")
+      .await
+      .unwrap();
 
     // tokio::spawn(async move {
     //   let mut player1 = MqttPlayer::from_connection("player1".to_string(), c1, self.mqtt_eventloop);
     //   player1.run().await.unwrap();
     // });
 
-    self.mqtt_client.subscribe("rusty_poker/#", QoS::AtMostOnce).await.unwrap();
-
+    self
+      .mqtt_client
+      .subscribe("rusty_poker/#", QoS::AtMostOnce)
+      .await
+      .unwrap();
 
     loop {
       if let Some(curr_index) = self.game.get_current_player_index() {
         let player = self.players[curr_index as usize].as_ref();
         let player_id = player.get_id();
         println!("Waiting for player id {}", &player_id);
-        let action = self.wait_for_message(format!("rusty_poker/{}", &player_id).as_str()).await;
+        let action = self
+          .wait_for_message(format!("rusty_poker/{}", &player_id).as_str())
+          .await;
         println!("Got an action for player id {}: {}", &player_id, action);
-        self.game.action_current_player(self.players[curr_index as usize].get_action_from_message(action.as_str())).unwrap();
+        self
+          .game
+          .action_current_player(self.players[curr_index as usize].get_action_from_message(action.as_str()))
+          .unwrap();
       }
       self.game.next();
       self.broadcast_game_state().await;
@@ -65,21 +72,33 @@ impl GameServer {
   }
 
   async fn broadcast_game_state(&mut self) {
-    let game_state = self.game.get_state(100);
-    self.mqtt_client.publish("rusty_poker/gamestate", QoS::AtLeastOnce, false, format!("{:?}", game_state)).await.unwrap();
+    let game_state = self.game.get_state(None);
+    self
+      .mqtt_client
+      .publish(
+        "rusty_poker/gamestate",
+        QoS::AtLeastOnce,
+        false,
+        format!("{:?}", game_state),
+      )
+      .await
+      .unwrap();
 
     // broadcast player specific state
     if let Some(curr_index) = self.game.get_current_player_index() {
-      let game_state = self.game.get_state(curr_index);
-      self.mqtt_client.publish(
-        format!("rusty_poker/gamestate/{}", self.players[curr_index as usize].get_id()),
-        QoS::AtLeastOnce,
-        false,
-        format!("{:?}", game_state)
-      ).await.unwrap();
+      let game_state = self.game.get_state(Some(curr_index));
+      self
+        .mqtt_client
+        .publish(
+          format!("rusty_poker/gamestate/{}", self.players[curr_index as usize].get_id()),
+          QoS::AtLeastOnce,
+          false,
+          format!("{:?}", game_state),
+        )
+        .await
+        .unwrap();
     }
   }
-
 
   async fn wait_for_message(&mut self, topic: &str) -> String {
     while let Ok(notification) = self.mqtt_eventloop.poll().await {
@@ -93,21 +112,16 @@ impl GameServer {
     }
     String::from("woah hello")
   }
-
 }
-
 
 pub struct MqttPlayer {
   pub id: String,
 }
 
 impl MqttPlayer {
-
   pub fn process_message(&mut self, message: String) {
     println!("Received message: {}", message);
   }
-
-
 }
 
 impl PlayerWithId for MqttPlayer {
@@ -115,20 +129,20 @@ impl PlayerWithId for MqttPlayer {
     self.id.clone()
   }
 
-  fn get_action_from_message(&self, request: &str) -> BettingAction {
-
+  fn get_action_from_message(&self, request: &str) -> EasyBettingAction {
     let split_request: Vec<_> = request.split(" ").collect();
     match split_request[0] {
-      "call" => BettingAction::Call,
-      "fold" => BettingAction::Fold,
-      &_ => BettingAction::Fold
+      "raise" => EasyBettingAction::Raise(split_request[1].parse::<u32>().unwrap()),
+      "allin" => EasyBettingAction::AllIn,
+      "call" => EasyBettingAction::Call,
+      "fold" => EasyBettingAction::Fold,
+      &_ => EasyBettingAction::Fold,
     }
   }
 }
 
 impl Player for MqttPlayer {
-  fn request_action(&self, _info: GameState) -> BettingAction {
-    BettingAction::Fold
+  fn request_action(&self, _info: GameState) -> EasyBettingAction {
+    EasyBettingAction::Fold
   }
 }
-

@@ -6,5 +6,4 @@ async fn main() {
   println!("Game server is alive.");
 
   game_server.run_server().await;
-
 }

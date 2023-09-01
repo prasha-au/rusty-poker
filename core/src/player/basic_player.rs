@@ -1,23 +1,22 @@
-use super::{Player};
-use crate::game::{Phase,BettingAction,GameState};
+use super::Player;
 use crate::evaluator::{chance_to_win, chance_to_win_preflop};
+use crate::game::{EasyBettingAction, GameState, Phase};
 
 pub struct BasicPlayer {
   pub id: u8,
 }
 
 impl Player for BasicPlayer {
-  fn request_action(&self, info: GameState) -> BettingAction {
-    let raise_or_call = |amount: u32| -> BettingAction {
+  fn request_action(&self, info: GameState) -> EasyBettingAction {
+    let raise_or_call = |amount: u32| -> EasyBettingAction {
       if amount > info.wallet {
-        BettingAction::AllIn(info.wallet)
+        EasyBettingAction::AllIn
       } else if amount > info.value_to_call {
-        BettingAction::Raise(amount - info.value_to_call)
+        EasyBettingAction::Raise(amount - info.value_to_call)
       } else {
-        BettingAction::Call
+        EasyBettingAction::Call
       }
     };
-
 
     let num_players = info.players.iter().filter(|p| p.is_some()).count() as u8;
     match info.phase {
@@ -30,9 +29,9 @@ impl Player for BasicPlayer {
         } else if odds > 20.00 {
           raise_or_call(info.value_to_call)
         } else {
-          BettingAction::Fold
+          EasyBettingAction::Fold
         }
-      },
+      }
       Phase::Flop | Phase::River | Phase::Turn => {
         let odds = chance_to_win(&info.table, &info.hand);
         if odds > 70.00 {
@@ -40,15 +39,12 @@ impl Player for BasicPlayer {
         } else if odds > 50.00 {
           raise_or_call(info.value_to_call)
         } else {
-          BettingAction::Fold
+          EasyBettingAction::Fold
         }
-      },
+      }
       _ => {
         panic!("Invalid phase to bet on.");
       }
     }
   }
-
-
 }
-

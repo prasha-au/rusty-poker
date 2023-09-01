@@ -3,7 +3,7 @@ use strum::IntoEnumIterator;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Deck {
-  value: u64
+  value: u64,
 }
 
 impl std::fmt::Display for Deck {
@@ -22,16 +22,16 @@ impl std::fmt::Display for Deck {
   }
 }
 
-
 impl Deck {
   pub fn new() -> Deck {
     Deck { value: 0 }
   }
 
   pub fn full_deck() -> Deck {
-    Deck { value: 0x000F_FFFF_FFFF_FFFF }
+    Deck {
+      value: 0x000F_FFFF_FFFF_FFFF,
+    }
   }
-
 
   pub fn from_cards(cards: &Vec<Card>) -> Deck {
     let mut value = 0u64;
@@ -76,7 +76,6 @@ impl Deck {
     }
     cards
   }
-
 }
 
 impl std::ops::Add for Deck {
@@ -84,11 +83,10 @@ impl std::ops::Add for Deck {
 
   fn add(self, other: Deck) -> Deck {
     Deck {
-      value: self.value | other.value
+      value: self.value | other.value,
     }
   }
 }
 
 #[cfg(test)]
 mod tests;
-

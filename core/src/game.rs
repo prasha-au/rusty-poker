@@ -1,14 +1,10 @@
 mod betting_round;
 
-use crate::deck::Deck;
 use crate::card::*;
-use rand::prelude::*;
+use crate::deck::Deck;
 use crate::evaluator::*;
 use betting_round::*;
-
-
-pub use betting_round::BettingAction;
-
+use rand::prelude::*;
 
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
 pub enum Phase {
@@ -17,17 +13,14 @@ pub enum Phase {
   Flop = 2,
   Turn = 3,
   River = 4,
-  Showdown = 5
+  Showdown = 5,
 }
-
 
 struct Seat {
   player_index: u8,
   hand: Deck,
   wallet: u32,
 }
-
-
 
 pub struct Game {
   phase: Phase,
@@ -39,14 +32,12 @@ pub struct Game {
   active_seats: Vec<Seat>,
 }
 
-
 #[derive(Copy, Clone, Debug)]
 pub struct PlayerState {
   pub is_folded: bool,
   pub wallet: u32,
   pub money_on_table: u32,
 }
-
 
 #[derive(Copy, Clone, Debug)]
 pub struct GameState {
@@ -61,9 +52,14 @@ pub struct GameState {
   pub value_to_call: u32,
 }
 
+pub enum EasyBettingAction {
+  Call,
+  Fold,
+  Raise(u32),
+  AllIn,
+}
 
 impl Game {
-
   pub fn create(num_players: u8, initial_wallet: u32) -> Game {
     Game {
       phase: Phase::Init,
@@ -71,15 +67,16 @@ impl Game {
       table: Deck::new(),
       dealer_index: num_players - 1,
       blind: 20,
-      active_seats: (0..num_players).map(|player_index| Seat {
-        player_index,
-        hand: Deck::new(),
-        wallet: initial_wallet,
-      }).collect(),
-      betting_round: BettingRound::create_for_players(num_players)
+      active_seats: (0..num_players)
+        .map(|player_index| Seat {
+          player_index,
+          hand: Deck::new(),
+          wallet: initial_wallet,
+        })
+        .collect(),
+      betting_round: BettingRound::create_for_players(num_players),
     }
   }
-
 
   fn pick_available_card(&mut self) -> Card {
     let mut rng = thread_rng();
@@ -89,7 +86,6 @@ impl Game {
     self.available_cards.remove_card(card);
     card
   }
-
 
   fn get_current_seat(&self) -> Option<&Seat> {
     if self.phase == Phase::Init || self.phase == Phase::Showdown || self.betting_round.is_complete() {
@@ -107,48 +103,62 @@ impl Game {
     }
   }
 
-
-  pub fn action_current_player(&mut self, action: BettingAction) -> Result<(), &'static str> {
+  pub fn action_current_player(&mut self, action: EasyBettingAction) -> Result<(), &'static str> {
     let current_seat_index = self.betting_round.get_current_player_index();
 
     let seat = self.get_current_seat();
     if seat.is_none() {
-      return Err("This is not the right time to bet.")
+      return Err("This is not the right time to bet.");
     }
     let seat = seat.unwrap();
 
-    if let BettingAction::Raise(amount) = action {
-      if amount > seat.wallet {
-        return Err("Cannot raise more than you have.");
-      } else if amount == seat.wallet {
-        return Err("You must go all in.");
+    let betting_action = match action {
+      EasyBettingAction::Raise(amount) => {
+        if amount > seat.wallet {
+          BettingAction::AllIn(seat.wallet)
+        } else {
+          BettingAction::Raise(amount)
+        }
       }
-    } else if let BettingAction::Call = action {
-      let deficit = self.betting_round.get_player_money_to_call(current_seat_index);
-      if deficit > seat.wallet {
-        return Err("Cannot call more than you have!");
-      } else if deficit == seat.wallet {
-        return Err("You must go all in.");
+      EasyBettingAction::Call => {
+        let deficit = self.betting_round.get_player_money_to_call(current_seat_index);
+        if deficit >= seat.wallet {
+          BettingAction::AllIn(seat.wallet)
+        } else {
+          BettingAction::Call
+        }
       }
-    } else if let BettingAction::AllIn(amount) = action {
-      if amount != seat.wallet {
-        return Err("Must go all in with your entire wallet.");
-      }
-    }
+      EasyBettingAction::AllIn => BettingAction::AllIn(seat.wallet),
+      EasyBettingAction::Fold => BettingAction::Fold,
+    };
 
-    let new_money = self.betting_round.action_current_player(action).unwrap();
+    // if let BettingAction::Raise(amount) = cleaned_action {
+    //   if amount > seat.wallet {
+    //     return Err("Cannot raise more than you have.");
+    //   } else if amount == seat.wallet {
+    //     return Err("You must go all in.");
+    //   }
+    // } else if let BettingAction::Call = cleaned_action {
+    //   let deficit = self.betting_round.get_player_money_to_call(current_seat_index);
+    //   if deficit > seat.wallet {
+    //     return Err("Cannot call more than you have!");
+    //   } else if deficit == seat.wallet {
+    //     return Err("You must go all in.");
+    //   }
+    // } else if let BettingAction::AllIn(amount) = cleaned_action {
+    //   if amount != seat.wallet {
+    //     return Err("Must go all in with your entire wallet.");
+    //   }
+    // }
+
+    let new_money = self.betting_round.action_current_player(betting_action).unwrap();
     self.active_seats[current_seat_index as usize].wallet -= new_money;
     Ok(())
   }
 
-
   fn post_blind(&mut self, amount: u32) {
-    let mut seat = &mut self.active_seats[self.betting_round.get_current_player_index() as usize];
-    let betting_action = if seat.wallet == amount { BettingAction::AllIn(amount) } else { BettingAction::Raise(amount) };
-    let new_money = self.betting_round.action_current_player(betting_action).unwrap();
-    seat.wallet -= new_money;
+    self.action_current_player(EasyBettingAction::Raise(amount)).unwrap();
   }
-
 
   fn init_round(&mut self) {
     self.available_cards = Deck::full_deck();
@@ -168,14 +178,20 @@ impl Game {
       }
     }
 
-    self.active_seats.retain(|s| !invalid_player_indexes.contains(&s.player_index));
+    self
+      .active_seats
+      .retain(|s| !invalid_player_indexes.contains(&s.player_index));
 
     let num_active_players = self.active_seats.len() as u8;
     if num_active_players < 2 {
       panic!("We do not have enough players.");
     }
 
-    self.dealer_index = self.active_seats.iter().position(|s| s.player_index == new_dealer_player_index.unwrap()).unwrap() as u8;
+    self.dealer_index = self
+      .active_seats
+      .iter()
+      .position(|s| s.player_index == new_dealer_player_index.unwrap())
+      .unwrap() as u8;
 
     self.betting_round = BettingRound::create_for_players(num_active_players);
     self.betting_round.set_new_start_position(self.dealer_index + 1);
@@ -184,7 +200,6 @@ impl Game {
     self.post_blind(self.blind);
     self.betting_round.set_new_start_position(self.dealer_index + 3);
   }
-
 
   fn deal_cards_to_players(&mut self) {
     let num_active_seats = self.active_seats.len();
@@ -204,24 +219,30 @@ impl Game {
     }
   }
 
-
   fn finalize(&mut self) {
     let active_indexes = self.betting_round.get_unfolded_player_indexes();
 
-    let active_scores = self.active_seats.iter().enumerate()
-    .map(|(i, p)| {
-      if active_indexes.contains(&(i as u8)) {
-        get_hand_score(&self.table, &p.hand)
-      } else {
-        0
-      }
-    }).collect::<Vec<u16>>();
-
+    let active_scores = self
+      .active_seats
+      .iter()
+      .enumerate()
+      .map(|(i, p)| {
+        if active_indexes.contains(&(i as u8)) {
+          get_hand_score(&self.table, &p.hand)
+        } else {
+          0
+        }
+      })
+      .collect::<Vec<u16>>();
 
     let winning_score = active_scores.iter().max().unwrap();
-    let winning_indexes = self.active_seats.iter().enumerate()
+    let winning_indexes = self
+      .active_seats
+      .iter()
+      .enumerate()
       .filter(|(i, _)| active_scores[*i] == *winning_score)
-      .map(|(i, _)| i).collect::<Vec<usize>>();
+      .map(|(i, _)| i)
+      .collect::<Vec<usize>>();
 
     let pot_splits = self.betting_round.get_pot_split(winning_indexes);
     for (idx, &split) in pot_splits.iter().enumerate() {
@@ -229,8 +250,7 @@ impl Game {
     }
   }
 
-
-  pub fn get_state(&self, player_index: u8) -> GameState {
+  pub fn get_state(&self, player_index: Option<u8>) -> GameState {
     let player_bets = self.betting_round.get_player_bets();
     let unfolded_players = self.betting_round.get_unfolded_player_indexes();
 
@@ -243,8 +263,16 @@ impl Game {
       });
     }
 
-    let active_seat_index = self.active_seats.iter().position(|p| p.player_index == player_index);
-    let player_seat = if let Some(idx) = active_seat_index { Some(&self.active_seats[idx]) } else { None };
+    let active_seat_index = if let Some(player_index) = player_index {
+      self.active_seats.iter().position(|p| p.player_index == player_index)
+    } else {
+      None
+    };
+    let player_seat = if let Some(idx) = active_seat_index {
+      Some(&self.active_seats[idx])
+    } else {
+      None
+    };
 
     GameState {
       total_pot: self.betting_round.get_pot(),
@@ -253,21 +281,25 @@ impl Game {
       phase: self.phase,
       wallet: if let Some(s) = player_seat { s.wallet } else { 0 },
       players,
-      current_player_index: if let Some(cs) = self.get_current_seat() { Some(cs.player_index) } else { None },
+      current_player_index: if let Some(cs) = self.get_current_seat() {
+        Some(cs.player_index)
+      } else {
+        None
+      },
       dealer_index: self.active_seats[self.dealer_index as usize].player_index,
-      value_to_call: if let Some(idx) = active_seat_index { self.betting_round.get_player_money_to_call(idx as u8) } else { 0 },
+      value_to_call: if let Some(idx) = active_seat_index {
+        self.betting_round.get_player_money_to_call(idx as u8)
+      } else {
+        0
+      },
     }
   }
-
 }
-
 
 impl Iterator for Game {
   type Item = Phase;
 
-
   fn next(&mut self) -> Option<Self::Item> {
-
     if self.get_current_seat().is_some() {
       return Some(self.phase);
     }
@@ -277,7 +309,7 @@ impl Iterator for Game {
         self.init_round();
         self.deal_cards_to_players();
         self.phase = Phase::PreFlop;
-      },
+      }
       Phase::PreFlop => {
         if self.betting_round.get_num_players_able_to_bets() > 1 {
           self.betting_round.reset_for_next_phase();
@@ -306,10 +338,10 @@ impl Iterator for Game {
         } else {
           self.phase = Phase::Showdown;
         }
-      },
+      }
       Phase::River => {
         self.phase = Phase::Showdown;
-      },
+      }
       Phase::Showdown => {
         let cards_on_table = self.table.get_cards().len() as u8;
         if cards_on_table < 5 {
@@ -327,9 +359,6 @@ impl Iterator for Game {
     Some(self.phase)
   }
 }
-
-
-
 
 #[cfg(test)]
 mod tests;
