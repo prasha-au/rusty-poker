@@ -1,7 +1,7 @@
+use super::types::Hand;
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::fs::File;
-use byteorder::{ReadBytesExt, LittleEndian};
 use std::sync::Once;
-use super::types::{Hand};
 
 const TABLE_SIZE: usize = 32487834;
 
@@ -13,11 +13,12 @@ fn init_two_plus_two_table() {
   LOAD_RANKS_ONCE.call_once(|| {
     let mut file = File::open("../HandRanks.dat").expect("File not found");
     unsafe {
-      file.read_u32_into::<LittleEndian>(&mut HAND_RANKS).expect("Could not read the file.");
+      file
+        .read_u32_into::<LittleEndian>(&mut HAND_RANKS)
+        .expect("Could not read the file.");
     }
   });
 }
-
 
 pub fn evaluate_score(cards: [u8; 7]) -> u16 {
   init_two_plus_two_table();
@@ -37,4 +38,3 @@ pub fn score_to_hand(score: u16) -> Hand {
 
 #[cfg(test)]
 mod tests;
-

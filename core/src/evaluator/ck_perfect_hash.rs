@@ -1,13 +1,12 @@
 mod tables;
 
+use super::types::Hand;
 use tables::*;
-use super::types::{Hand};
 
 // The rest of the system expects better hands to have higher scores so we need to reverse the CK score.
 const SCORE_INVERSION_VALUE: u16 = 7463;
 
 const HASH_QUINARY_ARR_LEN: usize = 13;
-
 
 fn hash_quinary(arr: &[u8; HASH_QUINARY_ARR_LEN]) -> u32 {
   let mut sum = 0u32;
@@ -21,7 +20,6 @@ fn hash_quinary(arr: &[u8; HASH_QUINARY_ARR_LEN]) -> u32 {
   }
   sum
 }
-
 
 pub fn evaluate_score(cards: [u8; 7]) -> u16 {
   let suit_hash: u16 = cards.iter().map(|c| SUITBIT_BY_ID_TABLE[*c as usize]).sum();
@@ -44,9 +42,6 @@ pub fn evaluate_score(cards: [u8; 7]) -> u16 {
   SCORE_INVERSION_VALUE - NOFLUSH_TABLE[hash as usize]
 }
 
-
-
-
 pub fn score_to_hand(score: u16) -> Hand {
   match SCORE_INVERSION_VALUE - score {
     1..=10 => Hand::StraightFlush,
@@ -61,7 +56,6 @@ pub fn score_to_hand(score: u16) -> Hand {
     _ => Hand::Invalid,
   }
 }
-
 
 #[cfg(test)]
 mod tests;

@@ -1,6 +1,6 @@
-use super::{Player};
-use crate::game::{Phase,BettingAction,GameState};
+use super::Player;
 use crate::evaluator::{chance_to_win, chance_to_win_preflop};
+use crate::game::{BettingAction, GameState, Phase};
 
 pub struct BasicPlayer {
   pub id: u8,
@@ -10,14 +10,13 @@ impl Player for BasicPlayer {
   fn request_action(&self, info: GameState) -> BettingAction {
     let raise_or_call = |amount: u32| -> BettingAction {
       if amount > info.wallet {
-        BettingAction::AllIn(info.wallet)
+        BettingAction::AllIn
       } else if amount > info.value_to_call {
         BettingAction::Raise(amount - info.value_to_call)
       } else {
         BettingAction::Call
       }
     };
-
 
     let num_players = info.players.iter().filter(|p| p.is_some()).count() as u8;
     match info.phase {
@@ -32,7 +31,7 @@ impl Player for BasicPlayer {
         } else {
           BettingAction::Fold
         }
-      },
+      }
       Phase::Flop | Phase::River | Phase::Turn => {
         let odds = chance_to_win(&info.table, &info.hand);
         if odds > 70.00 {
@@ -42,13 +41,10 @@ impl Player for BasicPlayer {
         } else {
           BettingAction::Fold
         }
-      },
+      }
       _ => {
         panic!("Invalid phase to bet on.");
       }
     }
   }
-
-
 }
-

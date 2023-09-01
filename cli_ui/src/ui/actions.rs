@@ -1,17 +1,13 @@
-use crossterm::{
-  event::{KeyCode},
-};
+use crossterm::event::KeyCode;
 use rusty_poker_core::game::{BettingAction, GameState};
 use tui::{
-  backend::{Backend},
-  style::{Color, Style, Modifier},
-  text::{Span},
-  widgets::{
-      List, ListItem, ListState
-  }, layout::Rect, Frame
+  backend::Backend,
+  layout::Rect,
+  style::{Color, Modifier, Style},
+  text::Span,
+  widgets::{List, ListItem, ListState},
+  Frame,
 };
-
-
 
 pub struct ActionsState {
   money_in_wallet: u32,
@@ -20,9 +16,7 @@ pub struct ActionsState {
   action_locked: bool,
 }
 
-
 impl ActionsState {
-
   pub fn new() -> ActionsState {
     let mut s = ActionsState {
       action_selection: ListState::default(),
@@ -33,8 +27,6 @@ impl ActionsState {
     s.action_selection.select(Some(0));
     s
   }
-
-
 
   fn prev_action(&mut self) {
     let selected = self.action_selection.selected().unwrap_or(1);
@@ -50,8 +42,6 @@ impl ActionsState {
     }
   }
 
-
-
   pub fn handle_keypress(&mut self, code: KeyCode) {
     if self.action_locked {
       if code == KeyCode::Esc {
@@ -59,7 +49,6 @@ impl ActionsState {
       }
       return;
     }
-
 
     match code {
       KeyCode::Up => self.prev_action(),
@@ -71,8 +60,6 @@ impl ActionsState {
     }
   }
 
-
-
   pub fn update_game_state(&mut self, game_state: &GameState) {
     self.money_in_wallet = game_state.wallet;
     if self.raise_amount < game_state.value_to_call {
@@ -83,7 +70,6 @@ impl ActionsState {
     }
   }
 
-
   pub fn get_betting_action(&mut self) -> Option<BettingAction> {
     if !self.action_locked {
       return None;
@@ -93,10 +79,9 @@ impl ActionsState {
       0 => BettingAction::Fold,
       1 => BettingAction::Call,
       2 => BettingAction::Raise(self.raise_amount),
-      3 => BettingAction::AllIn(self.money_in_wallet),
-      _ => BettingAction::Call
+      3 => BettingAction::AllIn,
+      _ => BettingAction::Call,
     };
-
 
     self.action_locked = false;
     self.raise_amount = 0;
@@ -104,7 +89,6 @@ impl ActionsState {
 
     Some(action)
   }
-
 
   pub fn render<B: Backend>(&mut self, f: &mut Frame<B>, area: Rect) {
     let mut actions_rect = area.clone();
@@ -119,15 +103,13 @@ impl ActionsState {
     ];
 
     let items = List::new(items)
-    .highlight_style(
+      .highlight_style(
         Style::default()
-            .bg(if self.action_locked { Color::Green } else { Color::White })
-            .fg(Color::Black)
-            .add_modifier(Modifier::BOLD),
-    )
-    .highlight_symbol(">> ");
+          .bg(if self.action_locked { Color::Green } else { Color::White })
+          .fg(Color::Black)
+          .add_modifier(Modifier::BOLD),
+      )
+      .highlight_symbol(">> ");
     f.render_stateful_widget(items, actions_rect, &mut self.action_selection);
   }
-
 }
-

@@ -1,4 +1,3 @@
-
 #[repr(u8)]
 #[derive(Debug, PartialEq)]
 pub enum Hand {
@@ -13,8 +12,6 @@ pub enum Hand {
   FourOfAKind = 8,
   StraightFlush = 9,
 }
-
-
 
 impl From<u8> for Hand {
   fn from(value: u8) -> Hand {
@@ -33,4 +30,3 @@ impl From<u8> for Hand {
     }
   }
 }
-

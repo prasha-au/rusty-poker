@@ -1,9 +1,5 @@
-
-
 use crate::card::Card;
 use crate::deck::*;
-
-
 
 #[test]
 fn adding_card_to_deck() {
@@ -28,7 +24,6 @@ fn adding_same_cards_to_deck() {
   assert_eq!(deck.value, (1 << 8));
 }
 
-
 #[test]
 fn removing_card_from_deck() {
   let mut deck = Deck::new();
@@ -36,7 +31,6 @@ fn removing_card_from_deck() {
   deck.remove_card(Card::try_from(5).unwrap());
   assert_eq!(deck.value, (1 << 8));
 }
-
 
 #[test]
 fn has_card_returns_true() {
@@ -51,7 +45,6 @@ fn has_card_returns_false() {
   assert!(!deck.has_card(Card::try_from(5).unwrap()));
 }
 
-
 #[test]
 fn deck_addition() {
   let mut deck_a = Deck::new();
@@ -62,7 +55,6 @@ fn deck_addition() {
   let combined_deck = deck_a + deck_b;
   assert_eq!(combined_deck.value, (1 << 8 | 1 << 16));
 }
-
 
 #[test]
 fn deck_addition_with_overlap() {

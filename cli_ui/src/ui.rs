@@ -1,48 +1,51 @@
 use std::{io, time::Duration};
 
 use crossterm::{
-  event::{DisableMouseCapture, EnableMouseCapture, KeyCode, self, Event},
+  event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
   execute,
   terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use rusty_poker_core::{game::{GameState, Game}, player::{CallingPlayer, Player}};
+use rusty_poker_core::{
+  game::{Game, GameState},
+  player::{CallingPlayer, Player},
+};
 use tui::{
-  backend::{CrosstermBackend, Backend}, Terminal, layout::Rect,
-  layout::{Layout,Direction,Constraint}, Frame
+  backend::{Backend, CrosstermBackend},
+  layout::Rect,
+  layout::{Constraint, Direction, Layout},
+  Frame, Terminal,
 };
 
-mod render;
 mod actions;
+mod render;
 
-
-use render::{draw_table,draw_player_info};
-use actions::{ActionsState};
-
-
-
-
+use actions::ActionsState;
+use render::{draw_player_info, draw_table};
 
 fn render<B: Backend>(f: &mut Frame<B>, game_state: &GameState, actions_state: &mut ActionsState) {
   let size = f.size();
-  let table_area = Rect { x: 0, y: 0, width: size.width, height: size.height - 15};
+  let table_area = Rect {
+    x: 0,
+    y: 0,
+    width: size.width,
+    height: size.height - 15,
+  };
 
   draw_table(f, game_state, table_area);
 
   let chunks = Layout::default()
-  .direction(Direction::Horizontal)
-  .constraints([Constraint::Length(80), Constraint::Min(0)].as_ref())
-  .split(Rect {
+    .direction(Direction::Horizontal)
+    .constraints([Constraint::Length(80), Constraint::Min(0)].as_ref())
+    .split(Rect {
       x: 0,
       y: size.height - 15,
       width: size.width,
       height: 15,
-  });
+    });
 
   draw_player_info(f, game_state, chunks[1]);
   actions_state.render(f, chunks[1]);
 }
-
-
 
 struct DisableRawMode;
 impl Drop for DisableRawMode {
@@ -50,9 +53,6 @@ impl Drop for DisableRawMode {
     disable_raw_mode().unwrap();
   }
 }
-
-
-
 
 pub fn run_tui() -> Result<(), io::Error> {
   let _disable_raw_mode = DisableRawMode;
@@ -62,7 +62,6 @@ pub fn run_tui() -> Result<(), io::Error> {
   execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
   let backend = CrosstermBackend::new(stdout);
   let mut terminal = Terminal::new(backend)?;
-
 
   let mut calling_players = vec![
     CallingPlayer { id: 1 },
@@ -75,15 +74,17 @@ pub fn run_tui() -> Result<(), io::Error> {
     CallingPlayer { id: 8 },
   ];
 
-  let players = calling_players.iter_mut().map(|p| Box::new(p as &mut dyn Player)).collect::<Vec<Box<&mut dyn Player>>>();
+  let players = calling_players
+    .iter_mut()
+    .map(|p| Box::new(p as &mut dyn Player))
+    .collect::<Vec<Box<&mut dyn Player>>>();
 
   let mut game = Game::create(8, 1000);
-
 
   let mut actions_state = ActionsState::new();
 
   loop {
-    let game_state = game.get_state(0);
+    let game_state = game.get_state(Some(0));
     actions_state.update_game_state(&game_state);
 
     terminal.draw(|f| render(f, &game_state, &mut actions_state))?;
@@ -94,9 +95,9 @@ pub fn run_tui() -> Result<(), io::Error> {
           if let Some(action) = actions_state.get_betting_action() {
             game.action_current_player(action).unwrap();
           }
-        },
+        }
         _ => {
-          let action = players[curr_index as usize].request_action(game.get_state(curr_index));
+          let action = players[curr_index as usize].request_action(game.get_state(Some(curr_index)));
           game.action_current_player(action).unwrap();
         }
       }
@@ -114,14 +115,9 @@ pub fn run_tui() -> Result<(), io::Error> {
         }
       }
     }
-  };
+  }
 
-
-  execute!(
-      terminal.backend_mut(),
-      LeaveAlternateScreen,
-      DisableMouseCapture
-  )?;
+  execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
   terminal.show_cursor()?;
 
   Ok(())

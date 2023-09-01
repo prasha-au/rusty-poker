@@ -1,6 +1,5 @@
-
 #[derive(Debug)]
-pub enum BettingAction {
+pub enum BettingActionWithAmount {
   Fold,
   Call,
   Raise(u32),
@@ -20,7 +19,6 @@ impl PlayerBet {
   }
 }
 
-
 pub struct BettingRound {
   current_bet: u32,
   player_bets: Vec<PlayerBet>,
@@ -29,19 +27,18 @@ pub struct BettingRound {
   is_complete: bool,
 }
 
-
-
 impl BettingRound {
-
   pub fn create_for_players(players: u8) -> BettingRound {
     BettingRound {
       current_bet: 0,
-      player_bets: (0..players).map(|_| PlayerBet {
-        money_in_pot: 0,
-        money_on_table: 0,
-        is_folded: false,
-        is_all_in: false,
-      }).collect(),
+      player_bets: (0..players)
+        .map(|_| PlayerBet {
+          money_in_pot: 0,
+          money_on_table: 0,
+          is_folded: false,
+          is_all_in: false,
+        })
+        .collect(),
       current_player_index: 0,
       final_player_index: players - 1,
       is_complete: false,
@@ -56,7 +53,6 @@ impl BettingRound {
     }
     self.set_new_start_position(self.current_player_index + 1);
   }
-
 
   fn get_prev_active_index(&self, start_index: u8) -> u8 {
     let total_players = self.player_bets.len() as u8;
@@ -83,7 +79,7 @@ impl BettingRound {
     self.final_player_index = self.get_prev_active_index(next_index);
   }
 
-  pub fn action_current_player(&mut self, action: BettingAction) -> Result<u32, &'static str> {
+  pub fn action_current_player(&mut self, action: BettingActionWithAmount) -> Result<u32, &'static str> {
     if self.is_complete {
       return Err("Betting has concluded.");
     }
@@ -92,18 +88,18 @@ impl BettingRound {
     let player = &mut self.player_bets[self.current_player_index as usize];
     let mut value_to_subtract = 0;
     match action {
-      BettingAction::Fold => {
+      BettingActionWithAmount::Fold => {
         player.is_folded = true;
         if self.get_num_players_able_to_bets() < 2 {
           self.is_complete = true;
         }
       }
-      BettingAction::Call => {
+      BettingActionWithAmount::Call => {
         value_to_subtract = self.current_bet - player.money_on_table;
         player.money_on_table = self.current_bet;
         player.money_in_pot += value_to_subtract;
       }
-      BettingAction::Raise(bet) => {
+      BettingActionWithAmount::Raise(bet) => {
         if (player.money_on_table + bet) <= self.current_bet {
           return Err("Raise must be greater than current bet.");
         }
@@ -113,7 +109,7 @@ impl BettingRound {
         self.current_bet = player.money_on_table;
         self.final_player_index = previous_player_index;
       }
-      BettingAction::AllIn(remaining_amount) => {
+      BettingActionWithAmount::AllIn(remaining_amount) => {
         value_to_subtract = remaining_amount;
         player.money_on_table += remaining_amount;
         player.money_in_pot += value_to_subtract;
@@ -167,9 +163,13 @@ impl BettingRound {
   }
 
   pub fn get_unfolded_player_indexes(&self) -> Vec<u8> {
-    self.player_bets.iter().enumerate()
-    .filter(|(_, p)| !p.is_folded)
-    .map(|(i, _)| i as u8).collect()
+    self
+      .player_bets
+      .iter()
+      .enumerate()
+      .filter(|(_, p)| !p.is_folded)
+      .map(|(i, _)| i as u8)
+      .collect()
   }
 
   pub fn get_pot(&self) -> u32 {
@@ -187,9 +187,17 @@ impl BettingRound {
 
     let mut prev_split_value = 0;
     for split in split_amounts {
-      let pot_size = player_money_in_pot.iter().filter(|pb| **pb >= split).collect::<Vec<_>>().len() as u32 * (split - prev_split_value);
+      let pot_size = player_money_in_pot
+        .iter()
+        .filter(|pb| **pb >= split)
+        .collect::<Vec<_>>()
+        .len() as u32
+        * (split - prev_split_value);
 
-      let indexes_eligible_for_split = winning_indexes.iter().filter(|&idx| player_money_in_pot[*idx] >= split).collect::<Vec<_>>();
+      let indexes_eligible_for_split = winning_indexes
+        .iter()
+        .filter(|&idx| player_money_in_pot[*idx] >= split)
+        .collect::<Vec<_>>();
       let num_splits = indexes_eligible_for_split.len() as u32;
       for &idx in indexes_eligible_for_split {
         pot_split[idx] += pot_size / num_splits;
@@ -199,9 +207,7 @@ impl BettingRound {
 
     pot_split
   }
-
 }
-
 
 #[cfg(test)]
 mod tests;

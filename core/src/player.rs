@@ -1,7 +1,7 @@
-mod types;
-mod calling_player;
 mod basic_player;
+mod calling_player;
+mod types;
 
-pub use types::{Player};
-pub use calling_player::{CallingPlayer};
-pub use basic_player::{BasicPlayer};
+pub use basic_player::BasicPlayer;
+pub use calling_player::CallingPlayer;
+pub use types::Player;
