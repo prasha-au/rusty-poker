@@ -1,20 +1,20 @@
 use super::Player;
 use crate::evaluator::{chance_to_win, chance_to_win_preflop};
-use crate::game::{EasyBettingAction, GameState, Phase};
+use crate::game::{BettingAction, GameState, Phase};
 
 pub struct BasicPlayer {
   pub id: u8,
 }
 
 impl Player for BasicPlayer {
-  fn request_action(&self, info: GameState) -> EasyBettingAction {
-    let raise_or_call = |amount: u32| -> EasyBettingAction {
+  fn request_action(&self, info: GameState) -> BettingAction {
+    let raise_or_call = |amount: u32| -> BettingAction {
       if amount > info.wallet {
-        EasyBettingAction::AllIn
+        BettingAction::AllIn
       } else if amount > info.value_to_call {
-        EasyBettingAction::Raise(amount - info.value_to_call)
+        BettingAction::Raise(amount - info.value_to_call)
       } else {
-        EasyBettingAction::Call
+        BettingAction::Call
       }
     };
 
@@ -29,7 +29,7 @@ impl Player for BasicPlayer {
         } else if odds > 20.00 {
           raise_or_call(info.value_to_call)
         } else {
-          EasyBettingAction::Fold
+          BettingAction::Fold
         }
       }
       Phase::Flop | Phase::River | Phase::Turn => {
@@ -39,7 +39,7 @@ impl Player for BasicPlayer {
         } else if odds > 50.00 {
           raise_or_call(info.value_to_call)
         } else {
-          EasyBettingAction::Fold
+          BettingAction::Fold
         }
       }
       _ => {

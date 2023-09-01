@@ -52,7 +52,7 @@ pub struct GameState {
   pub value_to_call: u32,
 }
 
-pub enum EasyBettingAction {
+pub enum BettingAction {
   Call,
   Fold,
   Raise(u32),
@@ -103,7 +103,7 @@ impl Game {
     }
   }
 
-  pub fn action_current_player(&mut self, action: EasyBettingAction) -> Result<(), &'static str> {
+  pub fn action_current_player(&mut self, action: BettingAction) -> Result<(), &'static str> {
     let seat = self.get_current_seat();
     if seat.is_none() {
       return Err("This is not the right time to bet.");
@@ -113,21 +113,21 @@ impl Game {
   }
 
   fn post_blind(&mut self, amount: u32) {
-    self.bet_for_current_player(EasyBettingAction::Raise(amount));
+    self.bet_for_current_player(BettingAction::Raise(amount));
   }
 
-  fn bet_for_current_player(&mut self, action: EasyBettingAction) {
+  fn bet_for_current_player(&mut self, action: BettingAction) {
     let player_index = self.betting_round.get_current_player_index();
     let seat = &self.active_seats[player_index as usize];
     let betting_action = match action {
-      EasyBettingAction::Raise(amount) => {
+      BettingAction::Raise(amount) => {
         if amount > seat.wallet {
           BettingActionWithAmount::AllIn(seat.wallet)
         } else {
           BettingActionWithAmount::Raise(amount)
         }
       }
-      EasyBettingAction::Call => {
+      BettingAction::Call => {
         let deficit = self.betting_round.get_player_money_to_call(player_index);
         if deficit >= seat.wallet {
           BettingActionWithAmount::AllIn(seat.wallet)
@@ -135,8 +135,8 @@ impl Game {
           BettingActionWithAmount::Call
         }
       }
-      EasyBettingAction::AllIn => BettingActionWithAmount::AllIn(seat.wallet),
-      EasyBettingAction::Fold => BettingActionWithAmount::Fold,
+      BettingAction::AllIn => BettingActionWithAmount::AllIn(seat.wallet),
+      BettingAction::Fold => BettingActionWithAmount::Fold,
     };
 
     let new_money = self.betting_round.action_current_player(betting_action).unwrap();

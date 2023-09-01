@@ -1,6 +1,6 @@
 use rusty_poker_core::{
   evaluator::{chance_to_win, chance_to_win_preflop},
-  game::{EasyBettingAction, GameState, Phase},
+  game::{BettingAction, GameState, Phase},
   player::Player,
 };
 use text_io::try_read;
@@ -8,7 +8,7 @@ use text_io::try_read;
 pub struct TerminalPlayer {}
 
 impl Player for TerminalPlayer {
-  fn request_action(&self, info: GameState) -> EasyBettingAction {
+  fn request_action(&self, info: GameState) -> BettingAction {
     let num_players = info.players.iter().filter(|p| p.is_some()).count() as u8;
 
     println!(
@@ -37,13 +37,13 @@ impl Player for TerminalPlayer {
       }
 
       if bet_amount == info.wallet {
-        break EasyBettingAction::AllIn;
+        break BettingAction::AllIn;
       } else if bet_amount > info.value_to_call {
-        break EasyBettingAction::Raise(bet_amount);
+        break BettingAction::Raise(bet_amount);
       } else if bet_amount == 0 && info.value_to_call > 0 {
-        break EasyBettingAction::Fold;
+        break BettingAction::Fold;
       } else {
-        break EasyBettingAction::Call;
+        break BettingAction::Call;
       }
     }
   }

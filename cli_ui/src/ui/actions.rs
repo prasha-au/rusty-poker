@@ -1,5 +1,5 @@
 use crossterm::event::KeyCode;
-use rusty_poker_core::game::{EasyBettingAction, GameState};
+use rusty_poker_core::game::{BettingAction, GameState};
 use tui::{
   backend::Backend,
   layout::Rect,
@@ -70,17 +70,17 @@ impl ActionsState {
     }
   }
 
-  pub fn get_betting_action(&mut self) -> Option<EasyBettingAction> {
+  pub fn get_betting_action(&mut self) -> Option<BettingAction> {
     if !self.action_locked {
       return None;
     }
     let selected = self.action_selection.selected().unwrap_or(0);
     let action = match selected {
-      0 => EasyBettingAction::Fold,
-      1 => EasyBettingAction::Call,
-      2 => EasyBettingAction::Raise(self.raise_amount),
-      3 => EasyBettingAction::AllIn,
-      _ => EasyBettingAction::Call,
+      0 => BettingAction::Fold,
+      1 => BettingAction::Call,
+      2 => BettingAction::Raise(self.raise_amount),
+      3 => BettingAction::AllIn,
+      _ => BettingAction::Call,
     };
 
     self.action_locked = false;

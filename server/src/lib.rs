@@ -1,5 +1,5 @@
 use rumqttc::{AsyncClient, Event, EventLoop, MqttOptions, Packet, QoS};
-use rusty_poker_core::game::{EasyBettingAction, Game, GameState};
+use rusty_poker_core::game::{BettingAction, Game, GameState};
 use rusty_poker_core::player::Player;
 use std::time::Duration;
 
@@ -12,7 +12,7 @@ pub struct GameServer {
 
 trait PlayerWithId: Player {
   fn get_id(&self) -> String;
-  fn get_action_from_message(&self, request: &str) -> EasyBettingAction;
+  fn get_action_from_message(&self, request: &str) -> BettingAction;
 }
 
 impl GameServer {
@@ -129,20 +129,20 @@ impl PlayerWithId for MqttPlayer {
     self.id.clone()
   }
 
-  fn get_action_from_message(&self, request: &str) -> EasyBettingAction {
+  fn get_action_from_message(&self, request: &str) -> BettingAction {
     let split_request: Vec<_> = request.split(" ").collect();
     match split_request[0] {
-      "raise" => EasyBettingAction::Raise(split_request[1].parse::<u32>().unwrap()),
-      "allin" => EasyBettingAction::AllIn,
-      "call" => EasyBettingAction::Call,
-      "fold" => EasyBettingAction::Fold,
-      &_ => EasyBettingAction::Fold,
+      "raise" => BettingAction::Raise(split_request[1].parse::<u32>().unwrap()),
+      "allin" => BettingAction::AllIn,
+      "call" => BettingAction::Call,
+      "fold" => BettingAction::Fold,
+      &_ => BettingAction::Fold,
     }
   }
 }
 
 impl Player for MqttPlayer {
-  fn request_action(&self, _info: GameState) -> EasyBettingAction {
-    EasyBettingAction::Fold
+  fn request_action(&self, _info: GameState) -> BettingAction {
+    BettingAction::Fold
   }
 }

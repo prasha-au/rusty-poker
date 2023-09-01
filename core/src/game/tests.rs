@@ -1,7 +1,7 @@
 use crate::game::*;
 
 fn call_and_next(game: &mut Game) {
-  game.action_current_player(EasyBettingAction::Call).unwrap();
+  game.action_current_player(BettingAction::Call).unwrap();
   game.next();
 }
 
@@ -141,12 +141,12 @@ fn should_only_split_pot_between_players_who_have_not_folded() {
 
   game.phase = Phase::PreFlop;
   game.betting_round.set_new_start_position(0);
-  game.action_current_player(EasyBettingAction::Raise(200)).unwrap();
-  game.action_current_player(EasyBettingAction::Call).unwrap();
+  game.action_current_player(BettingAction::Raise(200)).unwrap();
+  game.action_current_player(BettingAction::Call).unwrap();
 
   game.betting_round.reset_for_next_phase();
-  game.action_current_player(EasyBettingAction::Raise(200)).unwrap();
-  game.action_current_player(EasyBettingAction::Fold).unwrap();
+  game.action_current_player(BettingAction::Raise(200)).unwrap();
+  game.action_current_player(BettingAction::Fold).unwrap();
 
   game.table = Deck::from_cards(&vec![
     Card::new(Suit::Heart, Rank::Ace),
@@ -174,7 +174,7 @@ fn should_decrement_seat_wallet_on_bet() {
   let mut game = Game::create(2, 1000);
   game.phase = Phase::PreFlop;
   game.betting_round.set_new_start_position(0);
-  game.action_current_player(EasyBettingAction::Raise(200)).unwrap();
+  game.action_current_player(BettingAction::Raise(200)).unwrap();
   assert_eq!(800, game.active_seats[0].wallet);
   assert_eq!(1000, game.active_seats[1].wallet);
 }
@@ -228,7 +228,7 @@ fn game_state_should_return_correct_pot() {
   game.phase = Phase::PreFlop;
   assert_eq!(0, game.get_state(Some(0)).total_pot);
   game.betting_round.set_new_start_position(0);
-  game.action_current_player(EasyBettingAction::Raise(200)).unwrap();
+  game.action_current_player(BettingAction::Raise(200)).unwrap();
   assert_eq!(200, game.get_state(Some(0)).total_pot);
 }
 
@@ -255,7 +255,7 @@ fn game_state_should_return_correct_wallet() {
   let mut game = Game::create(2, 1000);
   game.phase = Phase::PreFlop;
   game.betting_round.set_new_start_position(0);
-  game.action_current_player(EasyBettingAction::Raise(200)).unwrap();
+  game.action_current_player(BettingAction::Raise(200)).unwrap();
   assert_eq!(800, game.get_state(Some(0)).wallet);
 }
 
@@ -280,7 +280,7 @@ fn game_state_should_return_correct_value_to_call() {
   let mut game = Game::create(2, 1000);
   game.phase = Phase::PreFlop;
   game.betting_round.set_new_start_position(0);
-  game.action_current_player(EasyBettingAction::Raise(200)).unwrap();
+  game.action_current_player(BettingAction::Raise(200)).unwrap();
   assert_eq!(0, game.get_state(Some(0)).value_to_call);
   assert_eq!(200, game.get_state(Some(1)).value_to_call);
 }
@@ -290,8 +290,8 @@ fn game_state_should_return_correct_player_info() {
   let mut game = Game::create(2, 1000);
   game.phase = Phase::PreFlop;
   game.betting_round.set_new_start_position(0);
-  game.action_current_player(EasyBettingAction::Raise(200)).unwrap();
-  game.action_current_player(EasyBettingAction::Fold).unwrap();
+  game.action_current_player(BettingAction::Raise(200)).unwrap();
+  game.action_current_player(BettingAction::Fold).unwrap();
 
   let player_state = game.get_state(Some(0)).players;
 
