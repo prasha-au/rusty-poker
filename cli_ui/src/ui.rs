@@ -84,7 +84,7 @@ pub fn run_tui() -> Result<(), io::Error> {
   let mut actions_state = ActionsState::new();
 
   loop {
-    let game_state = game.get_state(None);
+    let game_state = game.get_state(Some(0));
     actions_state.update_game_state(&game_state);
 
     terminal.draw(|f| render(f, &game_state, &mut actions_state))?;
