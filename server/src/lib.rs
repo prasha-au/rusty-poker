@@ -1,6 +1,7 @@
 use rumqttc::{AsyncClient, Event, EventLoop, MqttOptions, Packet, QoS};
 use rusty_poker_core::game::{BettingAction, Game, GameState};
 use rusty_poker_core::player::Player;
+use serde_json::json;
 use std::time::Duration;
 
 pub struct GameServer {
@@ -73,13 +74,18 @@ impl GameServer {
 
   async fn broadcast_game_state(&mut self) {
     let game_state = self.game.get_state(None);
+    let json_state = json!({
+      "total_pot": game_state.total_pot,
+      "money_on_table": game_state.players.iter().map(|p| p.money_on_table).collect::<Vec<_>>(),
+      "dealer_index": game_state.dealer_index,
+    });
     self
       .mqtt_client
       .publish(
         "rusty_poker/gamestate",
         QoS::AtLeastOnce,
         false,
-        format!("{:?}", game_state),
+        format!("{}", json_state),
       )
       .await
       .unwrap();
@@ -87,13 +93,17 @@ impl GameServer {
     // broadcast player specific state
     if let Some(curr_index) = self.game.get_current_player_index() {
       let game_state = self.game.get_state(Some(curr_index));
+      let json_state = json!({
+        "wallet": game_state.wallet,
+        "hand": 0
+      });
       self
         .mqtt_client
         .publish(
           format!("rusty_poker/gamestate/{}", self.players[curr_index as usize].get_id()),
           QoS::AtLeastOnce,
           false,
-          format!("{:?}", game_state),
+          format!("{}", json_state),
         )
         .await
         .unwrap();

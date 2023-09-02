@@ -9,7 +9,7 @@ pub struct TerminalPlayer {}
 
 impl Player for TerminalPlayer {
   fn request_action(&self, info: GameState) -> BettingAction {
-    let num_players = info.players.iter().filter(|p| p.is_some()).count() as u8;
+    let num_players = info.players.len() as u8;
 
     println!(
       "Your turn:  WALLET: ${}    POT: ${}   CALL: ${}   HAND: {}   TABLE: {}   EST: {:.2}%",

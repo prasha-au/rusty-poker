@@ -5,8 +5,8 @@ edition = "2021"
 
 
 
-
 [dependencies]
 rusty_poker_core = { path = "../core" }
 rumqttc = { version="0.22.0" }
 tokio = { version = "1.32.0", features = ["full"] }
+serde_json = { version = "1.0" }

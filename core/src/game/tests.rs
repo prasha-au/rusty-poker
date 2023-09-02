@@ -295,17 +295,49 @@ fn game_state_should_return_correct_player_info() {
 
   let player_state = game.get_state(Some(0)).players;
 
-  let player = player_state[0].unwrap();
+  let player = player_state[0];
   assert_eq!(800, player.wallet);
   assert_eq!(200, player.money_on_table);
   assert_eq!(false, player.is_folded);
 
-  let player = player_state[1].unwrap();
+  let player = player_state[1];
   assert_eq!(1000, player.wallet);
   assert_eq!(0, player.money_on_table);
   assert_eq!(true, player.is_folded);
 
-  for i in 2..8 {
-    assert_eq!(true, player_state[i].is_none());
-  }
+  assert_eq!(2, player_state.len());
+}
+
+#[test]
+fn game_when_actioning_player_should_use_whole_wallet_when_going_all_in() {
+  let mut game = Game::create(2, 1000);
+  game.phase = Phase::PreFlop;
+  game.betting_round.set_new_start_position(0);
+  game.action_current_player(BettingAction::Raise(2000)).unwrap();
+  assert_eq!(0, game.get_state(Some(0)).players[0].wallet);
+}
+
+#[test]
+fn game_when_actioning_player_should_convert_raise_to_all_in() {
+  let mut game = Game::create(2, 1000);
+  game.phase = Phase::PreFlop;
+  game.betting_round.set_new_start_position(0);
+  game.action_current_player(BettingAction::Raise(2000)).unwrap();
+  assert_eq!(0, game.get_state(Some(0)).players[0].wallet);
+  game.action_current_player(BettingAction::Raise(5000)).unwrap();
+  assert_eq!(0, game.get_state(Some(1)).players[1].wallet);
+  game.next();
+  assert_eq!(2000, game.get_state(None).total_pot);
+  assert_eq!(Phase::Showdown, game.get_state(None).phase);
+}
+
+#[test]
+fn game_when_actioning_player_should_convert_call_to_all_in() {
+  let mut game = Game::create(2, 1000);
+  game.phase = Phase::PreFlop;
+  game.betting_round.set_new_start_position(0);
+  game.action_current_player(BettingAction::Raise(1000)).unwrap();
+  game.action_current_player(BettingAction::Call).unwrap();
+  game.next();
+  assert_eq!(Phase::Showdown, game.get_state(None).phase);
 }

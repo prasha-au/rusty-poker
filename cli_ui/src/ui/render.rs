@@ -104,7 +104,7 @@ fn draw_player<B: Backend>(
     _ => TablePosition::Bottom,
   };
 
-  let player_state = game_state.players[player_index as usize].unwrap();
+  let player_state = game_state.players[player_index as usize];
 
   render_seat(
     f,
@@ -163,15 +163,13 @@ pub fn draw_table<B: Backend>(f: &mut Frame<B>, game_state: &GameState, table_ar
     },
   );
 
-  for (i, p) in game_state.players.iter().enumerate() {
-    if p.is_some() {
-      let name = if i == 0 {
-        String::from("You")
-      } else {
-        format!("Computer {}", i + 1)
-      };
-      draw_player(f, table_area, i as u8, name, i as u8, game_state);
-    }
+  for (i, _p) in game_state.players.iter().enumerate() {
+    let name = if i == 0 {
+      String::from("You")
+    } else {
+      format!("Computer {}", i + 1)
+    };
+    draw_player(f, table_area, i as u8, name, i as u8, game_state);
   }
 }
 

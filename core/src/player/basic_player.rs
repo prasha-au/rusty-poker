@@ -18,7 +18,7 @@ impl Player for BasicPlayer {
       }
     };
 
-    let num_players = info.players.iter().filter(|p| p.is_some()).count() as u8;
+    let num_players = info.players.len() as u8;
     match info.phase {
       Phase::PreFlop => {
         let odds = chance_to_win_preflop(&info.hand, num_players);

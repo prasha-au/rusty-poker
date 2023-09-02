@@ -39,14 +39,14 @@ pub struct PlayerState {
   pub money_on_table: u32,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct GameState {
   pub total_pot: u32,
   pub hand: Deck,
   pub table: Deck,
   pub wallet: u32,
   pub phase: Phase,
-  pub players: [Option<PlayerState>; 8],
+  pub players: Vec<PlayerState>,
   pub current_player_index: Option<u8>,
   pub dealer_index: u8,
   pub value_to_call: u32,
@@ -263,7 +263,16 @@ impl Game {
       table: self.table,
       phase: self.phase,
       wallet: if let Some(s) = player_seat { s.wallet } else { 0 },
-      players,
+      players: self
+        .active_seats
+        .iter()
+        .enumerate()
+        .map(|(idx, s)| PlayerState {
+          wallet: s.wallet,
+          money_on_table: player_bets[idx],
+          is_folded: !unfolded_players.contains(&(idx as u8)),
+        })
+        .collect(),
       current_player_index: if let Some(cs) = self.get_current_seat() {
         Some(cs.player_index)
       } else {
