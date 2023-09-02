@@ -42,13 +42,13 @@ pub struct PlayerState {
 #[derive(Clone, Debug)]
 pub struct GameState {
   pub total_pot: u32,
-  pub hand: Deck,
   pub table: Deck,
-  pub wallet: u32,
   pub phase: Phase,
   pub players: Vec<PlayerState>,
   pub current_player_index: Option<u8>,
   pub dealer_index: u8,
+  pub hand: Deck,
+  pub wallet: u32,
   pub value_to_call: u32,
 }
 
@@ -237,15 +237,6 @@ impl Game {
     let player_bets = self.betting_round.get_player_bets();
     let unfolded_players = self.betting_round.get_unfolded_player_indexes();
 
-    let mut players = [None; 8];
-    for (idx, s) in self.active_seats.iter().enumerate() {
-      players[s.player_index as usize] = Some(PlayerState {
-        wallet: s.wallet,
-        money_on_table: player_bets[idx],
-        is_folded: !unfolded_players.contains(&(idx as u8)),
-      });
-    }
-
     let active_seat_index = if let Some(player_index) = player_index {
       self.active_seats.iter().position(|p| p.player_index == player_index)
     } else {
@@ -259,10 +250,8 @@ impl Game {
 
     GameState {
       total_pot: self.betting_round.get_pot(),
-      hand: if let Some(s) = player_seat { s.hand } else { Deck::new() },
       table: self.table,
       phase: self.phase,
-      wallet: if let Some(s) = player_seat { s.wallet } else { 0 },
       players: self
         .active_seats
         .iter()
@@ -279,6 +268,8 @@ impl Game {
         None
       },
       dealer_index: self.active_seats[self.dealer_index as usize].player_index,
+      hand: if let Some(s) = player_seat { s.hand } else { Deck::new() },
+      wallet: if let Some(s) = player_seat { s.wallet } else { 0 },
       value_to_call: if let Some(idx) = active_seat_index {
         self.betting_round.get_player_money_to_call(idx as u8)
       } else {
