@@ -3,24 +3,49 @@ image: "rust:latest"
 variables:
   CARGO_HOME: $CI_PROJECT_DIR/.cargo
 
-stages:
-  - test
+cache: &cargo_cache
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .cargo/bin
+    - .cargo/registry/index
+    - .cargo/registry/cache
+    - HandRanks.dat
+  policy: pull
 
-test:cargo:
-  stage: test
-  before_script:
+stages:
+  - prepare
+  - verify
+
+prepare:
+  stage: prepare
+  cache:
+    <<: *cargo_cache
+    policy: pull-push
+  script:
     - |
       if [ -e HandRanks.dat ]; then
         echo "HandRanks.dat already exists"
       else
         curl -o HandRanks.dat https://raw.githubusercontent.com/tommy-a/zetebot/master/src/data/HandRanks.dat
       fi
-  cache:
-    key: testcache
-    paths:
-      - HandRanks.dat
-      - .cargo
+    - cargo fetch
+
+lint:
+  stage: verify
+  before_script:
+    - rustup component add clippy
   script:
-    - rustc --version && cargo --version
-    - cargo test --workspace --verbose
+    - cargo clippy -- -D warnings
+
+format:
+  stage: verify
+  before_script:
+    - rustup component add rustfmt
+  script:
+    - cargo fmt -- --check
+
+test:
+  stage: verify
+  script:
+    - cargo test --verbose
 
