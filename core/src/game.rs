@@ -112,24 +112,23 @@ impl Game {
     Ok(())
   }
 
-  fn post_blind(&mut self, amount: u32) {
-    self.bet_for_current_player(BettingAction::Raise(amount));
-  }
-
   fn bet_for_current_player(&mut self, action: BettingAction) {
     let player_index = self.betting_round.get_current_player_index();
     let seat = &self.active_seats[player_index as usize];
+    let money_to_call = self.betting_round.get_player_money_to_call(player_index);
     let betting_action = match action {
       BettingAction::Raise(amount) => {
-        if amount > seat.wallet {
+        let total_call = money_to_call + amount;
+        if total_call > seat.wallet {
           BettingActionWithAmount::AllIn(seat.wallet)
+        } else if total_call == money_to_call {
+          BettingActionWithAmount::Call
         } else {
-          BettingActionWithAmount::Raise(amount)
+          BettingActionWithAmount::Raise(total_call)
         }
       }
       BettingAction::Call => {
-        let deficit = self.betting_round.get_player_money_to_call(player_index);
-        if deficit >= seat.wallet {
+        if money_to_call >= seat.wallet {
           BettingActionWithAmount::AllIn(seat.wallet)
         } else {
           BettingActionWithAmount::Call
@@ -179,8 +178,8 @@ impl Game {
     self.betting_round = BettingRound::create_for_players(num_active_players);
     self.betting_round.set_new_start_position(self.dealer_index + 1);
 
-    self.post_blind(self.blind / 2);
-    self.post_blind(self.blind);
+    self.bet_for_current_player(BettingAction::Raise(self.blind / 2));
+    self.bet_for_current_player(BettingAction::Raise(self.blind / 2));
     self.betting_round.set_new_start_position(self.dealer_index + 3);
   }
 

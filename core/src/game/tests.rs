@@ -38,7 +38,7 @@ fn should_progress_phases() {
   assert_eq!(Phase::Init, game.phase);
 }
 
-fn play_round_of_calls(game: &mut Game) {
+fn play_a_game_of_calls(game: &mut Game) {
   game.next();
   while game.phase != Phase::Showdown {
     call_and_next(game);
@@ -50,7 +50,7 @@ fn play_round_of_calls(game: &mut Game) {
 fn should_reset_state_between_rounds() {
   let mut game = Game::create(2, 1000);
 
-  play_round_of_calls(&mut game);
+  play_a_game_of_calls(&mut game);
 
   assert_eq!(Phase::Init, game.phase);
   game.next();
@@ -68,7 +68,7 @@ fn should_iterate_multiple_rounds() {
   let mut game = Game::create(2, 1000);
   assert_eq!(Phase::Init, game.phase);
   for _ in 0..4 {
-    play_round_of_calls(&mut game);
+    play_a_game_of_calls(&mut game);
     assert_eq!(Phase::Init, game.phase);
   }
 }
@@ -315,6 +315,27 @@ fn game_when_actioning_player_should_use_whole_wallet_when_going_all_in() {
   game.betting_round.set_new_start_position(0);
   game.action_current_player(BettingAction::Raise(2000)).unwrap();
   assert_eq!(0, game.get_state(Some(0)).players[0].wallet);
+}
+
+#[test]
+fn game_when_actioning_player_should_raise_by_amount_given() {
+  let mut game = Game::create(2, 1000);
+  game.phase = Phase::PreFlop;
+  game.betting_round.set_new_start_position(0);
+  game.action_current_player(BettingAction::Raise(20)).unwrap();
+  game.action_current_player(BettingAction::Raise(40)).unwrap();
+  let game_state = game.get_state(None);
+  assert_eq!(80, game_state.total_pot);
+  assert_eq!(20, game_state.players[0].money_on_table);
+  assert_eq!(60, game_state.players[1].money_on_table);
+}
+
+#[test]
+fn game_when_actioning_player_should_convert_raise_to_call() {
+  let mut game = Game::create(2, 1000);
+  game.phase = Phase::PreFlop;
+  game.betting_round.set_new_start_position(0);
+  assert!(game.action_current_player(BettingAction::Raise(0)).is_ok());
 }
 
 #[test]

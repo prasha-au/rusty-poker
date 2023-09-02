@@ -1,4 +1,6 @@
+use rand::distributions::{Alphanumeric, DistString};
 use rumqttc::{AsyncClient, Event, EventLoop, MqttOptions, Packet, QoS};
+use rusty_poker_core::deck::Deck;
 use rusty_poker_core::game::{BettingAction, Game, GameState};
 use rusty_poker_core::player::Player;
 use serde_json::json;
@@ -22,10 +24,7 @@ impl GameServer {
     mqttoptions.set_keep_alive(Duration::from_secs(5));
     let (mqtt_client, mqtt_eventloop) = AsyncClient::new(mqttoptions, 10);
 
-    let players: Vec<Box<dyn PlayerWithId>> = vec![
-      Box::new(MqttPlayer { id: String::from("p1") }),
-      Box::new(MqttPlayer { id: String::from("p2") }),
-    ];
+    let players: Vec<Box<dyn PlayerWithId>> = vec![Box::new(MqttPlayer::create()), Box::new(MqttPlayer::create())];
 
     Self {
       mqtt_client,
@@ -78,6 +77,8 @@ impl GameServer {
       "total_pot": game_state.total_pot,
       "money_on_table": game_state.players.iter().map(|p| p.money_on_table).collect::<Vec<_>>(),
       "dealer_index": game_state.dealer_index,
+      "current_player_index": game_state.current_player_index,
+      "table": deck_to_value(&game_state.table),
     });
     self
       .mqtt_client
@@ -95,7 +96,8 @@ impl GameServer {
       let game_state = self.game.get_state(Some(curr_index));
       let json_state = json!({
         "wallet": game_state.wallet,
-        "hand": 0
+        "hand": deck_to_value(&game_state.hand),
+        "value_to_call": game_state.value_to_call,
       });
       self
         .mqtt_client
@@ -129,6 +131,12 @@ pub struct MqttPlayer {
 }
 
 impl MqttPlayer {
+  pub fn create() -> Self {
+    let string = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+    println!("{}", string);
+    Self { id: string }
+  }
+
   pub fn process_message(&mut self, message: String) {
     println!("Received message: {}", message);
   }
@@ -155,4 +163,8 @@ impl Player for MqttPlayer {
   fn request_action(&self, _info: GameState) -> BettingAction {
     BettingAction::Fold
   }
+}
+
+fn deck_to_value(deck: &Deck) -> serde_json::Value {
+  json!(deck.get_cards().iter().map(|c| c.to_string()).collect::<Vec<_>>())
 }
