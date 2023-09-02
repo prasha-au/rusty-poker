@@ -39,7 +39,12 @@ impl GameServer {
   pub async fn run_server(&mut self) {
     self
       .mqtt_client
-      .publish("rusty_poker/game-started", QoS::AtLeastOnce, false, format!("{}", self.id))
+      .publish(
+        "rusty_poker/game-started",
+        QoS::AtLeastOnce,
+        false,
+        self.id.to_string(),
+      )
       .await
       .unwrap();
 
@@ -108,7 +113,11 @@ impl GameServer {
       self
         .mqtt_client
         .publish(
-          format!("rusty_poker/{}/player/{}", self.id, self.players[curr_index as usize].get_id()),
+          format!(
+            "rusty_poker/{}/player/{}",
+            self.id,
+            self.players[curr_index as usize].get_id()
+          ),
           QoS::AtLeastOnce,
           false,
           format!("{}", json_state),
@@ -138,7 +147,9 @@ pub struct MqttPlayer {
 
 impl MqttPlayer {
   pub fn create() -> Self {
-    Self { id: Alphanumeric.sample_string(&mut rand::thread_rng(), 5).to_lowercase() }
+    Self {
+      id: Alphanumeric.sample_string(&mut rand::thread_rng(), 5).to_lowercase(),
+    }
   }
 
   pub fn process_message(&mut self, message: String) {
@@ -152,7 +163,7 @@ impl PlayerWithId for MqttPlayer {
   }
 
   fn get_action_from_message(&self, request: &str) -> BettingAction {
-    let split_request: Vec<_> = request.split(" ").collect();
+    let split_request: Vec<_> = request.split(' ').collect();
     match split_request[0] {
       "raise" => BettingAction::Raise(split_request[1].parse::<u32>().unwrap()),
       "allin" => BettingAction::AllIn,
