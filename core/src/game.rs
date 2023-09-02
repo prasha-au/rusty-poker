@@ -96,11 +96,7 @@ impl Game {
   }
 
   pub fn get_current_player_index(&self) -> Option<u8> {
-    if let Some(curr_seat) = self.get_current_seat() {
-      Some(curr_seat.player_index)
-    } else {
-      None
-    }
+    self.get_current_seat().map(|curr_seat| curr_seat.player_index)
   }
 
   pub fn action_current_player(&mut self, action: BettingAction) -> Result<(), &'static str> {
@@ -241,11 +237,7 @@ impl Game {
     } else {
       None
     };
-    let player_seat = if let Some(idx) = active_seat_index {
-      Some(&self.active_seats[idx])
-    } else {
-      None
-    };
+    let player_seat = active_seat_index.map(|idx| &self.active_seats[idx]);
 
     GameState {
       total_pot: self.betting_round.get_pot(),
@@ -261,11 +253,7 @@ impl Game {
           is_folded: !unfolded_players.contains(&(idx as u8)),
         })
         .collect(),
-      current_player_index: if let Some(cs) = self.get_current_seat() {
-        Some(cs.player_index)
-      } else {
-        None
-      },
+      current_player_index: self.get_current_seat().map(|cs| cs.player_index),
       dealer_index: self.active_seats[self.dealer_index as usize].player_index,
       hand: if let Some(s) = player_seat { s.hand } else { Deck::new() },
       wallet: if let Some(s) = player_seat { s.wallet } else { 0 },

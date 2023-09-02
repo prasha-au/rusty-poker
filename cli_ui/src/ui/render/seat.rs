@@ -38,7 +38,7 @@ pub fn render_seat<B: Backend>(f: &mut Frame<B>, area: Rect, seat: Seat) {
     status_spans.push(Span::raw("[][]"));
   }
   if seat.is_dealer {
-    if status_spans.len() > 0 {
+    if !status_spans.is_empty() {
       status_spans.push(Span::raw(" "));
     }
     status_spans.push(Span::styled("D", Style::default().bg(Color::Yellow).fg(Color::Black)));
@@ -100,9 +100,9 @@ pub fn render_seat<B: Backend>(f: &mut Frame<B>, area: Rect, seat: Seat) {
           height: 3,
         },
       );
-      if money_on_table.is_some() {
+      if let Some(money_on_table) = money_on_table {
         f.render_widget(
-          Paragraph::new(money_on_table.unwrap()).alignment(if seat.position == TablePosition::Left {
+          Paragraph::new(money_on_table).alignment(if seat.position == TablePosition::Left {
             Alignment::Right
           } else {
             Alignment::Left

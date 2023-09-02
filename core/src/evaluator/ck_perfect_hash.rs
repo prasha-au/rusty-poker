@@ -13,10 +13,10 @@ fn hash_quinary(arr: &[u8; HASH_QUINARY_ARR_LEN]) -> u32 {
   let mut k = 7u8;
   for i in 0..HASH_QUINARY_ARR_LEN {
     sum += HASH_CALC_TABLE[arr[i] as usize][HASH_QUINARY_ARR_LEN - i - 1][k as usize];
-    k -= arr[i];
-    if k <= 0 {
+    if arr[i] > k {
       break;
     }
+    k -= arr[i];
   }
   sum
 }

@@ -25,7 +25,7 @@ fn evaluate_score(cards: [u8; 7]) -> u16 {
   }
 }
 
-fn cards_to_fixed_array(cards: &Vec<Card>) -> [u8; 7] {
+fn cards_to_fixed_array(cards: &[Card]) -> [u8; 7] {
   let mut numeric_vec: Vec<u8> = cards.iter().map(|c| u8::from(*c)).collect();
   while numeric_vec.len() < 7 {
     numeric_vec.push(u8::MAX);
@@ -51,9 +51,9 @@ fn iterate_end_game(table_values: &Deck, player_values: &Deck, wins: &mut u32, g
       opponent_hand[5] = u8::from(*c1);
       opponent_hand[6] = u8::from(*c2);
       let opponent_score = evaluate_score(opponent_hand);
-      *games = *games + 1;
+      *games += 1;
       if player_score >= opponent_score {
-        *wins = *wins + 1;
+        *wins += 1;
       }
     }
   }

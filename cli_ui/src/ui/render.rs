@@ -112,7 +112,7 @@ fn draw_player<B: Backend>(
     Seat {
       position: alignment,
       is_turn: game_state.current_player_index == Some(player_index),
-      name: name,
+      name,
       money_on_table: player_state.money_on_table,
       money_in_wallet: player_state.wallet,
       is_folded: player_state.is_folded,
@@ -176,8 +176,8 @@ pub fn draw_table<B: Backend>(f: &mut Frame<B>, game_state: &GameState, table_ar
 pub fn draw_player_info<B: Backend>(f: &mut Frame<B>, game: &GameState, area: Rect) {
   let hand_cards = game.hand.get_cards();
 
-  let mut text_spans = hand_cards.iter().map(|card| card_to_span(card)).collect::<Vec<_>>();
-  if text_spans.len() > 0 {
+  let mut text_spans = hand_cards.iter().map(card_to_span).collect::<Vec<_>>();
+  if !text_spans.is_empty() {
     text_spans.insert(1, Span::raw(" "));
   }
   text_spans.push(Span::raw("   "));

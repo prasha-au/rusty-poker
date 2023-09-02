@@ -1,7 +1,7 @@
 use crate::card::*;
 use strum::IntoEnumIterator;
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, Default)]
 pub struct Deck {
   value: u64,
 }
@@ -14,7 +14,7 @@ impl std::fmt::Display for Deck {
         card_strings.push(Card::try_from(i).unwrap().to_string());
       }
     }
-    if card_strings.len() > 0 {
+    if !card_strings.is_empty() {
       write!(f, "[ {} ]", card_strings.join(" "))
     } else {
       write!(f, "[ ]")
@@ -83,6 +83,7 @@ impl std::ops::Add for Deck {
 
   fn add(self, other: Deck) -> Deck {
     Deck {
+      #[allow(clippy::suspicious_arithmetic_impl)]
       value: self.value | other.value,
     }
   }

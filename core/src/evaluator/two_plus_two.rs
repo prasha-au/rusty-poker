@@ -5,7 +5,7 @@ use std::sync::Once;
 
 const TABLE_SIZE: usize = 32487834;
 
-static mut HAND_RANKS: [u32; TABLE_SIZE] = [0 as u32; TABLE_SIZE];
+static mut HAND_RANKS: [u32; TABLE_SIZE] = [0; TABLE_SIZE];
 
 static LOAD_RANKS_ONCE: Once = Once::new();
 

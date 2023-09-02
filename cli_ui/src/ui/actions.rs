@@ -91,7 +91,7 @@ impl ActionsState {
   }
 
   pub fn render<B: Backend>(&mut self, f: &mut Frame<B>, area: Rect) {
-    let mut actions_rect = area.clone();
+    let mut actions_rect = area;
     actions_rect.y += 5;
     actions_rect.height -= 5;
 
