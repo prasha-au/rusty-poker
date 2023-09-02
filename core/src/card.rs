@@ -87,7 +87,7 @@ impl TryFrom<u8> for Card {
       bad_value => Err(format!("Invalid suit {}", bad_value)),
     };
 
-    let value = match num_value / 4 {
+    let rank = match num_value / 4 {
       0 => Ok(Rank::Two),
       1 => Ok(Rank::Three),
       2 => Ok(Rank::Four),
@@ -104,13 +104,10 @@ impl TryFrom<u8> for Card {
       bad_value => Err(format!("Invalid face value {}", bad_value)),
     };
 
-    if suit.is_err() || value.is_err() {
-      Err("Bad card value")
+    if let (Ok(suit), Ok(rank)) = (suit, rank) {
+      Ok(Card { suit, rank })
     } else {
-      Ok(Card {
-        suit: suit.unwrap(),
-        rank: value.unwrap(),
-      })
+      Err("Bad card value")
     }
   }
 }

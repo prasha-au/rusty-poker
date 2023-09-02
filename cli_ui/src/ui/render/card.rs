@@ -20,16 +20,15 @@ pub fn card_to_span(card: &Card) -> Span {
   Span::styled(format!("{}{}", card.suit, card.rank), Style::default().fg(color))
 }
 
-pub fn render_card_row<B: Backend>(f: &mut Frame<B>, area: Rect, cards: &Vec<Card>, min_cards: usize) {
-  let mut card_spans = cards.iter().map(|card| card_to_span(card)).collect::<Vec<_>>();
+pub fn render_card_row<B: Backend>(f: &mut Frame<B>, area: Rect, cards: &[Card], min_cards: usize) {
+  let mut card_spans = cards.iter().map(card_to_span).collect::<Vec<_>>();
 
   if card_spans.len() < min_cards {
     card_spans.resize(min_cards, Span::raw("[]"));
   }
   let mut flattened = card_spans
     .into_iter()
-    .map(|span| vec![span, Span::raw(" ")])
-    .flatten()
+    .flat_map(|span| vec![span, Span::raw(" ")])
     .collect::<Vec<_>>();
   flattened.pop();
 

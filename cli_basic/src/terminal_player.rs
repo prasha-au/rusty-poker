@@ -39,7 +39,7 @@ impl Player for TerminalPlayer {
       if bet_amount == info.wallet {
         break BettingAction::AllIn;
       } else if bet_amount > info.value_to_call {
-        break BettingAction::Raise(bet_amount);
+        break BettingAction::Raise(bet_amount - info.value_to_call);
       } else if bet_amount == 0 && info.value_to_call > 0 {
         break BettingAction::Fold;
       } else {
