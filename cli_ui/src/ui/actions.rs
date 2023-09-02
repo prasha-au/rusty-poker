@@ -62,8 +62,8 @@ impl ActionsState {
 
   pub fn update_game_state(&mut self, game_state: &GameState) {
     self.money_in_wallet = game_state.wallet;
-    if self.raise_amount < game_state.value_to_call {
-      self.raise_amount = game_state.value_to_call + 10;
+    if self.raise_amount == 0 {
+      self.raise_amount = 10;
     }
     if self.raise_amount > self.money_in_wallet {
       self.raise_amount = self.money_in_wallet;

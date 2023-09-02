@@ -9,7 +9,7 @@ pub struct TerminalPlayer {}
 
 impl Player for TerminalPlayer {
   fn request_action(&self, info: GameState) -> BettingAction {
-    let num_players = info.players.iter().filter(|p| p.is_some()).count() as u8;
+    let num_players = info.players.len() as u8;
 
     println!(
       "Your turn:  WALLET: ${}    POT: ${}   CALL: ${}   HAND: {}   TABLE: {}   EST: {:.2}%",
@@ -39,7 +39,7 @@ impl Player for TerminalPlayer {
       if bet_amount == info.wallet {
         break BettingAction::AllIn;
       } else if bet_amount > info.value_to_call {
-        break BettingAction::Raise(bet_amount);
+        break BettingAction::Raise(bet_amount - info.value_to_call);
       } else if bet_amount == 0 && info.value_to_call > 0 {
         break BettingAction::Fold;
       } else {
