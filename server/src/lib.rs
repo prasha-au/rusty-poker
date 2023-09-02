@@ -7,6 +7,7 @@ use serde_json::json;
 use std::time::Duration;
 
 pub struct GameServer {
+  id: String,
   mqtt_client: AsyncClient,
   mqtt_eventloop: EventLoop,
   game: Game,
@@ -27,6 +28,7 @@ impl GameServer {
     let players: Vec<Box<dyn PlayerWithId>> = vec![Box::new(MqttPlayer::create()), Box::new(MqttPlayer::create())];
 
     Self {
+      id: Alphanumeric.sample_string(&mut rand::thread_rng(), 16),
       mqtt_client,
       mqtt_eventloop,
       game: Game::create(2, 1000),
@@ -37,7 +39,7 @@ impl GameServer {
   pub async fn run_server(&mut self) {
     self
       .mqtt_client
-      .publish("rusty_poker/hello", QoS::AtLeastOnce, false, "game-started")
+      .publish("rusty_poker/game-started", QoS::AtLeastOnce, false, format!("{}", self.id))
       .await
       .unwrap();
 
@@ -48,7 +50,7 @@ impl GameServer {
 
     self
       .mqtt_client
-      .subscribe("rusty_poker/#", QoS::AtMostOnce)
+      .subscribe(format!("rusty_poker/{}/#", self.id), QoS::AtMostOnce)
       .await
       .unwrap();
 
@@ -56,11 +58,11 @@ impl GameServer {
       if let Some(curr_index) = self.game.get_current_player_index() {
         let player = self.players[curr_index as usize].as_ref();
         let player_id = player.get_id();
-        println!("Waiting for player id {}", &player_id);
+        println!("Waiting for player id {}", player_id);
         let action = self
-          .wait_for_message(format!("rusty_poker/{}", &player_id).as_str())
+          .wait_for_message(format!("rusty_poker/{}/{}", self.id, player_id).as_str())
           .await;
-        println!("Got an action for player id {}: {}", &player_id, action);
+        println!("Got an action for player id {}: {}", player_id, action);
         self
           .game
           .action_current_player(self.players[curr_index as usize].get_action_from_message(action.as_str()))
@@ -75,7 +77,11 @@ impl GameServer {
     let game_state = self.game.get_state(None);
     let json_state = json!({
       "total_pot": game_state.total_pot,
-      "money_on_table": game_state.players.iter().map(|p| p.money_on_table).collect::<Vec<_>>(),
+      "players": game_state.players.iter().map(|p| json!({
+        "wallet": p.wallet,
+        "is_folded": p.is_folded,
+        "money_on_table": p.money_on_table,
+      })).collect::<Vec<_>>(),
       "dealer_index": game_state.dealer_index,
       "current_player_index": game_state.current_player_index,
       "table": deck_to_value(&game_state.table),
@@ -83,7 +89,7 @@ impl GameServer {
     self
       .mqtt_client
       .publish(
-        "rusty_poker/gamestate",
+        format!("rusty_poker/{}/gamestate", self.id),
         QoS::AtLeastOnce,
         false,
         format!("{}", json_state),
@@ -102,7 +108,7 @@ impl GameServer {
       self
         .mqtt_client
         .publish(
-          format!("rusty_poker/gamestate/{}", self.players[curr_index as usize].get_id()),
+          format!("rusty_poker/{}/player/{}", self.id, self.players[curr_index as usize].get_id()),
           QoS::AtLeastOnce,
           false,
           format!("{}", json_state),
@@ -132,9 +138,7 @@ pub struct MqttPlayer {
 
 impl MqttPlayer {
   pub fn create() -> Self {
-    let string = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
-    println!("{}", string);
-    Self { id: string }
+    Self { id: Alphanumeric.sample_string(&mut rand::thread_rng(), 5).to_lowercase() }
   }
 
   pub fn process_message(&mut self, message: String) {
