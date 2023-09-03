@@ -52,6 +52,7 @@ pub struct GameState {
   pub value_to_call: u32,
 }
 
+#[derive(Copy, Clone, Debug)]
 pub enum BettingAction {
   Call,
   Fold,

@@ -1,84 +1,125 @@
 use rand::distributions::{Alphanumeric, DistString};
-use rumqttc::{AsyncClient, Event, EventLoop, MqttOptions, Packet, QoS};
+use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use rusty_poker_core::deck::Deck;
 use rusty_poker_core::game::{BettingAction, Game, GameState};
 use rusty_poker_core::player::Player;
 use serde_json::json;
 use std::time::Duration;
+use tokio::task;
 
 pub struct GameServer {
   id: String,
-  mqtt_client: AsyncClient,
-  mqtt_eventloop: EventLoop,
+  // mqtt_client: AsyncClient,
+  // mqtt_eventloop: EventLoop,
   game: Game,
   players: Vec<Box<dyn PlayerWithId>>,
 }
 
-trait PlayerWithId: Player {
-  fn get_id(&self) -> String;
-  fn get_action_from_message(&self, request: &str) -> BettingAction;
+#[derive(Debug)]
+struct PlayerAction {
+  player_id: String,
+  message: String,
 }
 
 impl GameServer {
   pub fn create() -> Self {
-    let mut mqttoptions = MqttOptions::new("rusty_poker", "broker.hivemq.com", 1883);
-    mqttoptions.set_keep_alive(Duration::from_secs(5));
-    let (mqtt_client, mqtt_eventloop) = AsyncClient::new(mqttoptions, 10);
-
     let players: Vec<Box<dyn PlayerWithId>> = vec![Box::new(MqttPlayer::create()), Box::new(MqttPlayer::create())];
-
     Self {
       id: Alphanumeric.sample_string(&mut rand::thread_rng(), 16),
-      mqtt_client,
-      mqtt_eventloop,
       game: Game::create(2, 1000),
       players,
     }
   }
 
   pub async fn run_server(&mut self) {
-    self
-      .mqtt_client
-      .publish(
-        "rusty_poker/game-started",
-        QoS::AtLeastOnce,
-        false,
-        self.id.to_string(),
-      )
+    let mut mqttoptions = MqttOptions::new("rusty_poker", "broker.hivemq.com", 1883);
+    mqttoptions.set_keep_alive(Duration::from_secs(5));
+    let (mqtt_client, mut mqtt_eventloop) = AsyncClient::new(mqttoptions, 10);
+
+    mqtt_client
+      .publish("rusty_poker/game-started", QoS::AtLeastOnce, false, self.id.to_string())
       .await
       .unwrap();
 
-    // tokio::spawn(async move {
-    //   let mut player1 = MqttPlayer::from_connection("player1".to_string(), c1, self.mqtt_eventloop);
-    //   player1.run().await.unwrap();
-    // });
-
-    self
-      .mqtt_client
-      .subscribe(format!("rusty_poker/{}/#", self.id), QoS::AtMostOnce)
+    mqtt_client
+      .subscribe(format!("rusty_poker/{}/action/#", self.id), QoS::AtMostOnce)
       .await
       .unwrap();
 
-    loop {
-      if let Some(curr_index) = self.game.get_current_player_index() {
-        let player = self.players[curr_index as usize].as_ref();
-        let player_id = player.get_id();
-        println!("Waiting for player id {}", player_id);
-        let action = self
-          .wait_for_message(format!("rusty_poker/{}/{}", self.id, player_id).as_str())
-          .await;
-        println!("Got an action for player id {}: {}", player_id, action);
-        self
-          .game
-          .action_current_player(self.players[curr_index as usize].get_action_from_message(action.as_str()))
-          .unwrap();
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<PlayerAction>(32);
+
+    // Run the local task set.
+
+    // let mqtt_eventloop = &mut self.mqtt_eventloop;
+    let player_ids = self.players.iter().map(|p| p.get_id()).collect::<Vec<_>>();
+    let _manager = task::spawn(async move {
+      while let Ok(notification) = mqtt_eventloop.poll().await {
+        // println!("Received = {:?}", notification);
+        if let Event::Incoming(Packet::Publish(msg)) = notification {
+          println!("Received message on topic: {}", msg.topic);
+          // TODO: This does not have to be reliant on player if we had better topics
+          let player_id = player_ids.iter().find(|p| msg.topic.ends_with(*p));
+          if let Some(player_id) = player_id {
+            println!("Pushing to channel");
+            tx.send(PlayerAction {
+              player_id: player_id.to_string(),
+              message: String::from_utf8(msg.payload.into()).unwrap(),
+            })
+            .await
+            .unwrap();
+          }
+        }
       }
-      self.game.next();
-      self.broadcast_game_state().await;
+    });
+
+    println!("Main loop about to run");
+
+    let mut do_stuff = true;
+    loop {
+      while let Ok(message) = rx.try_recv() {
+        println!("Processing queued message {:?}", message);
+        let player = self.players.iter_mut().find(|p| p.get_id() == message.player_id);
+        if let Some(player) = player {
+          player.process_message(&message.message);
+        }
+      }
+
+      if do_stuff {
+        let current_phase = self.game.get_state(None).phase;
+        let new_phase = self.game.next();
+        if new_phase.is_none() || current_phase != new_phase.unwrap() {
+          println!("Phase changed to {:?}", new_phase);
+          for player in self.players.iter_mut() {
+            player.clear_pending_action();
+          }
+        }
+        self.broadcast_game_state(&mqtt_client).await;
+      }
+
+      if let Some(curr_idx) = self.game.get_current_player_index() {
+        // println!("waiting for player idx {}", curr_idx);
+        let player = &self.players[curr_idx as usize];
+        if let Some(action) = player.get_pending_action() {
+          self.game.action_current_player(action).unwrap();
+          do_stuff = true;
+        } else if do_stuff {
+          println!("No action for {}", player.get_id());
+          mqtt_client
+            .publish(
+              format!("rusty_poker/{}/request", self.id),
+              QoS::AtLeastOnce,
+              false,
+              player.get_id(),
+            )
+            .await
+            .unwrap();
+          do_stuff = false
+        }
+      }
     }
   }
 
-  async fn broadcast_game_state(&mut self) {
+  async fn broadcast_game_state(&mut self, mqtt_client: &AsyncClient) {
     let game_state = self.game.get_state(None);
     let json_state = json!({
       "total_pot": game_state.total_pot,
@@ -91,8 +132,7 @@ impl GameServer {
       "current_player_index": game_state.current_player_index,
       "table": deck_to_value(&game_state.table),
     });
-    self
-      .mqtt_client
+    mqtt_client
       .publish(
         format!("rusty_poker/{}/gamestate", self.id),
         QoS::AtLeastOnce,
@@ -110,8 +150,7 @@ impl GameServer {
         "hand": deck_to_value(&game_state.hand),
         "value_to_call": game_state.value_to_call,
       });
-      self
-        .mqtt_client
+      mqtt_client
         .publish(
           format!(
             "rusty_poker/{}/player/{}",
@@ -126,29 +165,25 @@ impl GameServer {
         .unwrap();
     }
   }
+}
 
-  async fn wait_for_message(&mut self, topic: &str) -> String {
-    while let Ok(notification) = self.mqtt_eventloop.poll().await {
-      println!("Received = {:?}", notification);
-      if let Event::Incoming(Packet::Publish(msg)) = notification {
-        println!("Received message on topic: {}", msg.topic);
-        if msg.topic == topic {
-          return String::from_utf8(msg.payload.into()).unwrap();
-        }
-      }
-    }
-    String::from("woah hello")
-  }
+trait PlayerWithId: Player {
+  fn get_id(&self) -> String;
+  fn get_pending_action(&self) -> Option<BettingAction>;
+  fn clear_pending_action(&mut self);
+  fn process_message(&mut self, request: &str);
 }
 
 pub struct MqttPlayer {
   pub id: String,
+  last_action: Option<BettingAction>,
 }
 
 impl MqttPlayer {
   pub fn create() -> Self {
     Self {
       id: Alphanumeric.sample_string(&mut rand::thread_rng(), 5).to_lowercase(),
+      last_action: None,
     }
   }
 
@@ -162,15 +197,23 @@ impl PlayerWithId for MqttPlayer {
     self.id.clone()
   }
 
-  fn get_action_from_message(&self, request: &str) -> BettingAction {
+  fn get_pending_action(&self) -> Option<BettingAction> {
+    self.last_action
+  }
+
+  fn clear_pending_action(&mut self) {
+    self.last_action = None;
+  }
+
+  fn process_message(&mut self, request: &str) {
     let split_request: Vec<_> = request.split(' ').collect();
-    match split_request[0] {
-      "raise" => BettingAction::Raise(split_request[1].parse::<u32>().unwrap()),
-      "allin" => BettingAction::AllIn,
-      "call" => BettingAction::Call,
-      "fold" => BettingAction::Fold,
-      &_ => BettingAction::Fold,
-    }
+    self.last_action = match split_request[0] {
+      "raise" => Some(BettingAction::Raise(split_request[1].parse::<u32>().unwrap())),
+      "allin" => Some(BettingAction::AllIn),
+      "call" => Some(BettingAction::Call),
+      "fold" => Some(BettingAction::Fold),
+      &_ => None,
+    };
   }
 }
 

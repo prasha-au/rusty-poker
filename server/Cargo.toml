@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 
-
 [dependencies]
 rusty_poker_core = { path = "../core" }
 rumqttc = { version="0.22.0" }
