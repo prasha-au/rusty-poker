@@ -2,7 +2,7 @@ use rand::distributions::{Alphanumeric, DistString};
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use rusty_poker_core::deck::Deck;
 use rusty_poker_core::game::{BettingAction, Game, GameState};
-use rusty_poker_core::player::{Player, BasicPlayer};
+use rusty_poker_core::player::{BasicPlayer, Player};
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -10,9 +10,9 @@ use std::time::Duration;
 use tokio::task;
 
 pub async fn run_server() {
-
+  let total_players = 4;
   let game_id = "test"; //Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
-  let mut game = Game::create(4, 1000);
+  let mut game = Game::create(total_players, 1000);
 
   let mut mqttoptions = MqttOptions::new("rusty_poker", "broker.hivemq.com", 1883);
   mqttoptions.set_keep_alive(Duration::from_secs(5));
@@ -28,21 +28,19 @@ pub async fn run_server() {
     .await
     .unwrap();
 
-
-
-
   let mqtt_players = vec![MqttPlayer::create(), MqttPlayer::create()];
-
   let mqtt_player_ids = mqtt_players.iter().map(|p| p.get_id()).collect::<Vec<_>>();
 
-  let mut player_arcs: Vec<Arc<RwLock<dyn ExtendedPlayer>>> = Vec::with_capacity(4);
-  for mqtt_player in mqtt_players {
-    player_arcs.push(Arc::new(RwLock::new(mqtt_player)));
-  }
-  player_arcs.push(Arc::new(RwLock::new(BasicPlayer { id: 3 })));
-  player_arcs.push(Arc::new(RwLock::new(BasicPlayer { id: 4 })));
+  let basic_players_iter =
+    ((mqtt_player_ids.len() as u8)..total_players).map(|id| Box::new(BasicPlayer { id }) as Box<dyn ExtendedPlayer>);
 
-
+  let players_arc: Vec<RwLock<Box<dyn ExtendedPlayer>>> = mqtt_players
+    .into_iter()
+    .map(|v| Box::new(v) as Box<dyn ExtendedPlayer>)
+    .chain(basic_players_iter)
+    .map(RwLock::new)
+    .collect::<Vec<_>>();
+  let players_arc = Arc::new(players_arc);
 
   let local = task::LocalSet::new();
 
@@ -51,7 +49,7 @@ pub async fn run_server() {
     mqtt_player_ids_map.insert(player_id.to_string(), idx);
   }
 
-  let player_arcs_clone = player_arcs.clone();
+  let player_arcs_clone = players_arc.clone();
   local.spawn_local(async move {
     while let Ok(notification) = mqtt_eventloop.poll().await {
       // println!("Received = {:?}", notification);
@@ -67,8 +65,6 @@ pub async fn run_server() {
         }
         println!("It is for player {}", player_idx.unwrap());
 
-
-
         let mut player = player_arcs_clone[*player_idx.unwrap()].write().unwrap();
         println!("Processing message for mqtt player: {}", player.get_id());
         player.process_message(&String::from_utf8(msg.payload.into()).unwrap());
@@ -76,15 +72,18 @@ pub async fn run_server() {
     }
   });
 
-  let player_arcs_clone = player_arcs.clone();
+  let player_arcs_clone = players_arc.clone();
   local.spawn_local(async move {
-    let player_ids = player_arcs.iter().map(|p| p.read().unwrap().get_id()).collect::<Vec<_>>();
+    let player_ids = players_arc
+      .iter()
+      .map(|p| p.read().unwrap().get_id())
+      .collect::<Vec<_>>();
     loop {
       let current_phase = game.get_state(None).phase;
       let new_phase = game.next();
       if new_phase.is_none() || current_phase != new_phase.unwrap() {
-        for player in player_arcs.iter_mut() {
-          player.clone().write().unwrap().clear_pending_action();
+        for player in player_arcs_clone.iter() {
+          player.write().unwrap().clear_pending_action();
         }
       }
 
@@ -92,7 +91,7 @@ pub async fn run_server() {
 
       if let Some(curr_idx) = game.get_current_player_index() {
         // println!("waiting for player idx {}", curr_idx);
-        let player_arc = &player_arcs_clone[curr_idx as usize].clone();
+        let player_arc = &player_arcs_clone[curr_idx as usize];
         let player = player_arc.read().unwrap();
 
         println!("Checking action for {}", player.get_id().clone());
@@ -116,9 +115,7 @@ pub async fn run_server() {
   local.await;
 }
 
-
-
-async fn broadcast_game_state(game: &Game, player_ids: &Vec<String>, mqtt_client: &AsyncClient, game_id: &str) {
+async fn broadcast_game_state(game: &Game, player_ids: &[String], mqtt_client: &AsyncClient, game_id: &str) {
   let game_state = game.get_state(None);
   let json_state = json!({
     "total_pot": game_state.total_pot,
@@ -151,11 +148,7 @@ async fn broadcast_game_state(game: &Game, player_ids: &Vec<String>, mqtt_client
     });
     mqtt_client
       .publish(
-        format!(
-          "rusty_poker/{}/player/{}",
-          game_id,
-          player_ids[curr_index as usize],
-        ),
+        format!("rusty_poker/{}/player/{}", game_id, player_ids[curr_index as usize],),
         QoS::AtLeastOnce,
         false,
         format!("{}", json_state),
@@ -170,12 +163,8 @@ trait ExtendedPlayer: Player {
   fn get_action_rx(&self) -> Option<tokio::sync::watch::Receiver<Option<BettingAction>>> {
     None
   }
-  fn clear_pending_action(&mut self) {
-    ()
-  }
-  fn process_message(&mut self, _request: &str) {
-    ()
-  }
+  fn clear_pending_action(&mut self) {}
+  fn process_message(&mut self, _request: &str) {}
 }
 
 pub struct MqttPlayer {
@@ -208,7 +197,6 @@ impl ExtendedPlayer for MqttPlayer {
     self.action_tx.send_replace(None);
   }
 
-
   fn process_message(&mut self, request: &str) {
     let split_request: Vec<_> = request.split(' ').collect();
     self
@@ -222,10 +210,7 @@ impl ExtendedPlayer for MqttPlayer {
       })
       .unwrap();
   }
-
 }
-
-
 
 impl Player for MqttPlayer {
   fn request_action(&self, _info: GameState) -> BettingAction {
@@ -237,10 +222,8 @@ fn deck_to_value(deck: &Deck) -> serde_json::Value {
   json!(deck.get_cards().iter().map(|c| c.to_string()).collect::<Vec<_>>())
 }
 
-
 impl ExtendedPlayer for BasicPlayer {
   fn get_id(&self) -> String {
     format!("ai_{}", self.id.clone())
   }
 }
-
