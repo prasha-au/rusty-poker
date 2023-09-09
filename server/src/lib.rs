@@ -27,12 +27,14 @@ pub async fn run_server() {
     .await
     .unwrap();
 
-  let player_ids = players.iter().map(|p| p.get_id()).collect::<Vec<_>>();
+  let player_ids_arc = Arc::new(players.iter().map(|p| p.get_id()).collect::<Vec<_>>());
   let players_arc = Arc::new(RwLock::new(players));
 
   let local = task::LocalSet::new();
 
+
   let players_for_spawn = players_arc.clone();
+  let player_ids = player_ids_arc.clone();
   local.spawn_local(async move {
     while let Ok(notification) = mqtt_eventloop.poll().await {
       // println!("Received = {:?}", notification);
@@ -44,28 +46,27 @@ pub async fn run_server() {
           let message = String::from_utf8(msg.payload.into()).unwrap();
           println!("Calling action for player idx {}: {}", player_idx, message);
           let mut players = players_for_spawn.write().unwrap();
-          println!("lock obtained");
           players[player_idx].process_message(&message);
-          println!("process msg is done");
         }
       }
     }
   });
 
+  let player_ids = player_ids_arc.clone();
   local.spawn_local(async move {
     loop {
       let current_phase = game.get_state(None).phase;
       let new_phase = game.next();
-      let mut players = players_arc.write().unwrap();
       if new_phase.is_none() || current_phase != new_phase.unwrap() {
+        let mut players = players_arc.write().unwrap();
         println!("Phase changed to {:?}", new_phase);
         for player in players.iter_mut() {
           player.clear_pending_action();
         }
+        drop(players);
       }
 
-      broadcast_game_state(&game, &players, &mqtt_client, game_id).await;
-      std::mem::drop(players);
+      broadcast_game_state(&game, &player_ids, &mqtt_client, game_id).await;
 
       if let Some(curr_idx) = game.get_current_player_index() {
         let players = players_arc.read().unwrap();
@@ -74,9 +75,13 @@ pub async fn run_server() {
 
         println!("Checking action for {}", player.get_id().clone());
         let mut action_rec = player.action_rx.clone();
-        std::mem::drop(players);
-        let action = action_rec.wait_for(|v| v.is_some()).await.unwrap();
-        game.action_current_player(action.unwrap()).unwrap();
+        drop(players);
+        let action = action_rec.wait_for(|v| v.is_some()).await.unwrap().unwrap();
+        game.action_current_player(action).unwrap();
+
+        let mut players = players_arc.write().unwrap();
+        let player = &mut players[curr_idx as usize];
+        player.clear_pending_action();
       }
     }
   });
@@ -84,7 +89,9 @@ pub async fn run_server() {
   local.await;
 }
 
-async fn broadcast_game_state(game: &Game, players: &[MqttPlayer], mqtt_client: &AsyncClient, game_id: &str) {
+
+
+async fn broadcast_game_state(game: &Game, player_ids: &Vec<String>, mqtt_client: &AsyncClient, game_id: &str) {
   let game_state = game.get_state(None);
   let json_state = json!({
     "total_pot": game_state.total_pot,
@@ -120,7 +127,7 @@ async fn broadcast_game_state(game: &Game, players: &[MqttPlayer], mqtt_client: 
         format!(
           "rusty_poker/{}/player/{}",
           game_id,
-          players[curr_index as usize].get_id()
+          player_ids[curr_index as usize],
         ),
         QoS::AtLeastOnce,
         false,
@@ -152,7 +159,6 @@ impl MqttPlayer {
   }
 
   fn process_message(&mut self, request: &str) {
-    println!("Process message called");
     let split_request: Vec<_> = request.split(' ').collect();
     self
       .action_tx
@@ -167,8 +173,7 @@ impl MqttPlayer {
   }
 
   fn clear_pending_action(&mut self) {
-    // self.last_action = None;
-    self.action_tx.send(None).unwrap();
+    self.action_tx.send_replace(None);
   }
 }
 
