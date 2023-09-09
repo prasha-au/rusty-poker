@@ -2,16 +2,17 @@ use rand::distributions::{Alphanumeric, DistString};
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use rusty_poker_core::deck::Deck;
 use rusty_poker_core::game::{BettingAction, Game, GameState};
-use rusty_poker_core::player::Player;
+use rusty_poker_core::player::{Player, BasicPlayer};
 use serde_json::json;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio::task;
 
 pub async fn run_server() {
-  let players: Vec<MqttPlayer> = vec![MqttPlayer::create(), MqttPlayer::create()];
+
   let game_id = "test"; //Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
-  let mut game = Game::create(2, 1000);
+  let mut game = Game::create(4, 1000);
 
   let mut mqttoptions = MqttOptions::new("rusty_poker", "broker.hivemq.com", 1883);
   mqttoptions.set_keep_alive(Duration::from_secs(5));
@@ -27,60 +28,86 @@ pub async fn run_server() {
     .await
     .unwrap();
 
-  let player_ids_arc = Arc::new(players.iter().map(|p| p.get_id()).collect::<Vec<_>>());
-  let players_arc = Arc::new(RwLock::new(players));
+
+
+
+  let mqtt_players = vec![MqttPlayer::create(), MqttPlayer::create()];
+
+  let mqtt_player_ids = mqtt_players.iter().map(|p| p.get_id()).collect::<Vec<_>>();
+
+  let mut player_arcs: Vec<Arc<RwLock<dyn ExtendedPlayer>>> = Vec::with_capacity(4);
+  for mqtt_player in mqtt_players {
+    player_arcs.push(Arc::new(RwLock::new(mqtt_player)));
+  }
+  player_arcs.push(Arc::new(RwLock::new(BasicPlayer { id: 3 })));
+  player_arcs.push(Arc::new(RwLock::new(BasicPlayer { id: 4 })));
+
+
 
   let local = task::LocalSet::new();
 
+  let mut mqtt_player_ids_map: HashMap<String, usize> = HashMap::new();
+  for (idx, player_id) in mqtt_player_ids.iter().enumerate() {
+    mqtt_player_ids_map.insert(player_id.to_string(), idx);
+  }
 
-  let players_for_spawn = players_arc.clone();
-  let player_ids = player_ids_arc.clone();
+  let player_arcs_clone = player_arcs.clone();
   local.spawn_local(async move {
     while let Ok(notification) = mqtt_eventloop.poll().await {
       // println!("Received = {:?}", notification);
       if let Event::Incoming(Packet::Publish(msg)) = notification {
         println!("Received message on topic: {}", msg.topic);
-        // TODO: This does not have to be reliant on player if we had better topics
-        let player_idx = player_ids.iter().position(|p| msg.topic.ends_with(p));
-        if let Some(player_idx) = player_idx {
-          let message = String::from_utf8(msg.payload.into()).unwrap();
-          println!("Calling action for player idx {}: {}", player_idx, message);
-          let mut players = players_for_spawn.write().unwrap();
-          players[player_idx].process_message(&message);
+        if !msg.topic.contains("/action/") {
+          continue;
         }
+        println!("It's an action message");
+        let player_idx = mqtt_player_ids_map.get(msg.topic.split('/').nth(3).unwrap_or(""));
+        if player_idx.is_none() {
+          continue;
+        }
+        println!("It is for player {}", player_idx.unwrap());
+
+
+
+        let mut player = player_arcs_clone[*player_idx.unwrap()].write().unwrap();
+        println!("Processing message for mqtt player: {}", player.get_id());
+        player.process_message(&String::from_utf8(msg.payload.into()).unwrap());
       }
     }
   });
 
-  let player_ids = player_ids_arc.clone();
+  let player_arcs_clone = player_arcs.clone();
   local.spawn_local(async move {
+    let player_ids = player_arcs.iter().map(|p| p.read().unwrap().get_id()).collect::<Vec<_>>();
     loop {
       let current_phase = game.get_state(None).phase;
       let new_phase = game.next();
       if new_phase.is_none() || current_phase != new_phase.unwrap() {
-        let mut players = players_arc.write().unwrap();
-        println!("Phase changed to {:?}", new_phase);
-        for player in players.iter_mut() {
-          player.clear_pending_action();
+        for player in player_arcs.iter_mut() {
+          player.clone().write().unwrap().clear_pending_action();
         }
-        drop(players);
       }
 
       broadcast_game_state(&game, &player_ids, &mqtt_client, game_id).await;
 
       if let Some(curr_idx) = game.get_current_player_index() {
-        let players = players_arc.read().unwrap();
         // println!("waiting for player idx {}", curr_idx);
-        let player = &players[curr_idx as usize];
+        let player_arc = &player_arcs_clone[curr_idx as usize].clone();
+        let player = player_arc.read().unwrap();
 
         println!("Checking action for {}", player.get_id().clone());
-        let mut action_rec = player.action_rx.clone();
-        drop(players);
-        let action = action_rec.wait_for(|v| v.is_some()).await.unwrap().unwrap();
-        game.action_current_player(action).unwrap();
-
-        let mut players = players_arc.write().unwrap();
-        let player = &mut players[curr_idx as usize];
+        if let Some(action_rx) = player.get_action_rx() {
+          println!("    we are waiting for an mqtt message...");
+          drop(player);
+          let action = action_rx.clone().wait_for(|v| v.is_some()).await.unwrap().unwrap();
+          game.action_current_player(action).unwrap();
+        } else {
+          let action = player.request_action(game.get_state(Some(curr_idx)));
+          drop(player);
+          println!("    we will action automatically...");
+          game.action_current_player(action).unwrap();
+        }
+        let mut player = player_arc.write().unwrap();
         player.clear_pending_action();
       }
     }
@@ -138,8 +165,17 @@ async fn broadcast_game_state(game: &Game, player_ids: &Vec<String>, mqtt_client
   }
 }
 
-trait PlayerWithId: Player {
+trait ExtendedPlayer: Player {
   fn get_id(&self) -> String;
+  fn get_action_rx(&self) -> Option<tokio::sync::watch::Receiver<Option<BettingAction>>> {
+    None
+  }
+  fn clear_pending_action(&mut self) {
+    ()
+  }
+  fn process_message(&mut self, _request: &str) {
+    ()
+  }
 }
 
 pub struct MqttPlayer {
@@ -157,6 +193,21 @@ impl MqttPlayer {
       action_rx: rx,
     }
   }
+}
+
+impl ExtendedPlayer for MqttPlayer {
+  fn get_id(&self) -> String {
+    self.id.clone()
+  }
+
+  fn get_action_rx(&self) -> Option<tokio::sync::watch::Receiver<Option<BettingAction>>> {
+    Some(self.action_rx.clone())
+  }
+
+  fn clear_pending_action(&mut self) {
+    self.action_tx.send_replace(None);
+  }
+
 
   fn process_message(&mut self, request: &str) {
     let split_request: Vec<_> = request.split(' ').collect();
@@ -172,16 +223,9 @@ impl MqttPlayer {
       .unwrap();
   }
 
-  fn clear_pending_action(&mut self) {
-    self.action_tx.send_replace(None);
-  }
 }
 
-impl PlayerWithId for MqttPlayer {
-  fn get_id(&self) -> String {
-    self.id.clone()
-  }
-}
+
 
 impl Player for MqttPlayer {
   fn request_action(&self, _info: GameState) -> BettingAction {
@@ -192,3 +236,11 @@ impl Player for MqttPlayer {
 fn deck_to_value(deck: &Deck) -> serde_json::Value {
   json!(deck.get_cards().iter().map(|c| c.to_string()).collect::<Vec<_>>())
 }
+
+
+impl ExtendedPlayer for BasicPlayer {
+  fn get_id(&self) -> String {
+    format!("ai_{}", self.id.clone())
+  }
+}
+
