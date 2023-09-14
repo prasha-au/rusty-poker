@@ -9,6 +9,12 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio::task;
 
+enum PlayerType {
+  // TODO: Can we somehow get away with the rwlock wrap?
+  BasicPlayer(RwLock<BasicPlayer>),
+  MqttPlayer(RwLock<MqttPlayer>),
+}
+
 pub async fn run_server() {
   let total_players = 4;
   let game_id = "test"; //Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
@@ -32,18 +38,18 @@ pub async fn run_server() {
   let mqtt_player_ids = mqtt_players.iter().map(|p| p.get_id()).collect::<Vec<_>>();
 
   let basic_players_iter =
-    ((mqtt_player_ids.len() as u8)..total_players).map(|id| Box::new(BasicPlayer { id }) as Box<dyn ExtendedPlayer>);
+    ((mqtt_players.len() as u8)..total_players).map(|id| PlayerType::BasicPlayer(RwLock::new(BasicPlayer { id })));
 
-  let players_arc: Vec<RwLock<Box<dyn ExtendedPlayer>>> = mqtt_players
+  let players_arc: Vec<PlayerType> = mqtt_players
     .into_iter()
-    .map(|v| Box::new(v) as Box<dyn ExtendedPlayer>)
+    .map(|v| PlayerType::MqttPlayer(RwLock::new(v)))
     .chain(basic_players_iter)
-    .map(RwLock::new)
     .collect::<Vec<_>>();
   let players_arc = Arc::new(players_arc);
 
   let local = task::LocalSet::new();
 
+  // TODO: This can move into the spawn with the enum changes
   let mut mqtt_player_ids_map: HashMap<String, usize> = HashMap::new();
   for (idx, player_id) in mqtt_player_ids.iter().enumerate() {
     mqtt_player_ids_map.insert(player_id.to_string(), idx);
@@ -65,49 +71,59 @@ pub async fn run_server() {
         }
         println!("It is for player {}", player_idx.unwrap());
 
-        let mut player = player_arcs_clone[*player_idx.unwrap()].write().unwrap();
-        println!("Processing message for mqtt player: {}", player.get_id());
-        player.process_message(&String::from_utf8(msg.payload.into()).unwrap());
+        if let PlayerType::MqttPlayer(player_lock) = &player_arcs_clone[*player_idx.unwrap()] {
+          let mut player = player_lock.write().unwrap();
+          println!("Processing message for mqtt player: {}", player.get_id());
+          player.process_message(&String::from_utf8(msg.payload.into()).unwrap());
+        }
       }
     }
   });
 
   let player_arcs_clone = players_arc.clone();
   local.spawn_local(async move {
-    let player_ids = players_arc
-      .iter()
-      .map(|p| p.read().unwrap().get_id())
-      .collect::<Vec<_>>();
     loop {
       let current_phase = game.get_state(None).phase;
       let new_phase = game.next();
       if new_phase.is_none() || current_phase != new_phase.unwrap() {
         for player in player_arcs_clone.iter() {
-          player.write().unwrap().clear_pending_action();
+          if let PlayerType::MqttPlayer(player) = player {
+            player.write().unwrap().clear_pending_action();
+          }
         }
       }
 
-      broadcast_game_state(&game, &player_ids, &mqtt_client, game_id).await;
+      broadcast_game_state(&game, &mqtt_client, game_id).await;
 
-      if let Some(curr_idx) = game.get_current_player_index() {
-        // println!("waiting for player idx {}", curr_idx);
-        let player_arc = &player_arcs_clone[curr_idx as usize];
-        let player = player_arc.read().unwrap();
+      let curr_idx = game.get_current_player_index();
+      if curr_idx.is_none() {
+        continue;
+      }
+      let curr_idx = curr_idx.unwrap();
 
-        println!("Checking action for {}", player.get_id().clone());
-        if let Some(action_rx) = player.get_action_rx() {
+      // println!("waiting for player idx {}", curr_idx);
+      match &player_arcs_clone[curr_idx as usize] {
+        PlayerType::MqttPlayer(player_lock) => {
+          let player = player_lock.read().unwrap();
+          let player_id = player.get_id();
+          broadcast_player_state(&game.get_state(Some(curr_idx)), &player_id, &mqtt_client, game_id).await;
+
+          println!("Checking action for {}", player_id);
+
+          let action_rx = player.get_action_rx();
           println!("    we are waiting for an mqtt message...");
           drop(player);
           let action = action_rx.clone().wait_for(|v| v.is_some()).await.unwrap().unwrap();
           game.action_current_player(action).unwrap();
-        } else {
-          let action = player.request_action(game.get_state(Some(curr_idx)));
-          drop(player);
-          println!("    we will action automatically...");
-          game.action_current_player(action).unwrap();
+
+          let mut player = player_lock.write().unwrap();
+          player.clear_pending_action();
         }
-        let mut player = player_arc.write().unwrap();
-        player.clear_pending_action();
+        PlayerType::BasicPlayer(player_lock) => {
+          let player = player_lock.write().unwrap();
+          let game_state = game.get_state(Some(curr_idx));
+          game.action_current_player(player.request_action(game_state)).unwrap();
+        }
       }
     }
   });
@@ -115,7 +131,7 @@ pub async fn run_server() {
   local.await;
 }
 
-async fn broadcast_game_state(game: &Game, player_ids: &[String], mqtt_client: &AsyncClient, game_id: &str) {
+async fn broadcast_game_state(game: &Game, mqtt_client: &AsyncClient, game_id: &str) {
   let game_state = game.get_state(None);
   let json_state = json!({
     "total_pot": game_state.total_pot,
@@ -137,34 +153,23 @@ async fn broadcast_game_state(game: &Game, player_ids: &[String], mqtt_client: &
     )
     .await
     .unwrap();
-
-  // broadcast player specific state
-  if let Some(curr_index) = game.get_current_player_index() {
-    let game_state = game.get_state(Some(curr_index));
-    let json_state = json!({
-      "wallet": game_state.wallet,
-      "hand": deck_to_value(&game_state.hand),
-      "value_to_call": game_state.value_to_call,
-    });
-    mqtt_client
-      .publish(
-        format!("rusty_poker/{}/player/{}", game_id, player_ids[curr_index as usize],),
-        QoS::AtLeastOnce,
-        false,
-        format!("{}", json_state),
-      )
-      .await
-      .unwrap();
-  }
 }
 
-trait ExtendedPlayer: Player {
-  fn get_id(&self) -> String;
-  fn get_action_rx(&self) -> Option<tokio::sync::watch::Receiver<Option<BettingAction>>> {
-    None
-  }
-  fn clear_pending_action(&mut self) {}
-  fn process_message(&mut self, _request: &str) {}
+async fn broadcast_player_state(game_state: &GameState, player_id: &str, mqtt_client: &AsyncClient, game_id: &str) {
+  let json_state = json!({
+    "wallet": game_state.wallet,
+    "hand": deck_to_value(&game_state.hand),
+    "value_to_call": game_state.value_to_call,
+  });
+  mqtt_client
+    .publish(
+      format!("rusty_poker/{}/player/{}", game_id, player_id),
+      QoS::AtLeastOnce,
+      false,
+      format!("{}", json_state),
+    )
+    .await
+    .unwrap();
 }
 
 pub struct MqttPlayer {
@@ -182,15 +187,9 @@ impl MqttPlayer {
       action_rx: rx,
     }
   }
-}
 
-impl ExtendedPlayer for MqttPlayer {
-  fn get_id(&self) -> String {
-    self.id.clone()
-  }
-
-  fn get_action_rx(&self) -> Option<tokio::sync::watch::Receiver<Option<BettingAction>>> {
-    Some(self.action_rx.clone())
+  fn get_action_rx(&self) -> tokio::sync::watch::Receiver<Option<BettingAction>> {
+    self.action_rx.clone()
   }
 
   fn clear_pending_action(&mut self) {
@@ -210,6 +209,10 @@ impl ExtendedPlayer for MqttPlayer {
       })
       .unwrap();
   }
+
+  fn get_id(&self) -> String {
+    self.id.clone()
+  }
 }
 
 impl Player for MqttPlayer {
@@ -220,10 +223,4 @@ impl Player for MqttPlayer {
 
 fn deck_to_value(deck: &Deck) -> serde_json::Value {
   json!(deck.get_cards().iter().map(|c| c.to_string()).collect::<Vec<_>>())
-}
-
-impl ExtendedPlayer for BasicPlayer {
-  fn get_id(&self) -> String {
-    format!("ai_{}", self.id.clone())
-  }
 }
