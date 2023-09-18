@@ -3,4 +3,4 @@
 opt-level = 1
 
 [workspace]
-members = ["core", "cli_basic", "cli_ui"]
+members = ["core", "cli_basic", "cli_ui", "server"]
